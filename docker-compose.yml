@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    container_name: colect_partner_portal_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: colect
+      POSTGRES_PASSWORD: colect_dev_password
+      POSTGRES_DB: colect_partner_portal
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U colect -d colect_partner_portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

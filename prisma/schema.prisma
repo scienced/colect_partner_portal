@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum for asset types
+enum AssetType {
+  DECK
+  CAMPAIGN
+  ASSET
+  VIDEO
+}
+
+// Enum for user roles
+enum UserRole {
+  PARTNER
+  ADMIN
+}
+
+// Users table (synced with SuperTokens)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(PARTNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Unified assets table (decks, campaigns, assets)
+model Asset {
+  id          String    @id @default(uuid())
+  type        AssetType
+  title       String
+  description String?
+
+  // File information
+  fileUrl      String?
+  thumbnailUrl String?
+  fileType     String?
+  fileSize     Int?
+
+  // Metadata filters
+  region   String[] // e.g., ["EMEA", "APAC", "Americas"]
+  language String[] // e.g., ["en", "nl", "de"]
+  persona  String[] // e.g., ["Sales", "Marketing", "Technical"]
+
+  // Campaign-specific fields
+  campaignGoal    String?
+  campaignLink    String?
+  templateContent String?
+
+  // Asset-specific fields
+  externalLink String?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  // Relations
+  changelogs Changelog[]
+  featuredIn FeaturedContent[]
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([publishedAt])
+}
+
+// Documentation updates
+model DocsUpdate {
+  id       String  @id @default(uuid())
+  title    String
+  summary  String
+  deepLink String
+  category String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  changelogs Changelog[]
+  featuredIn FeaturedContent[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([publishedAt])
+}
+
+// Product updates and release notes
+model ProductUpdate {
+  id          String    @id @default(uuid())
+  title       String
+  content     String
+  updateType  String // "release_note" | "coming_up"
+  releaseDate DateTime?
+  link        String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  changelogs Changelog[]
+  featuredIn FeaturedContent[]
+
+  @@index([updateType])
+  @@index([releaseDate])
+  @@index([publishedAt])
+}
+
+// Who's Who directory
+model TeamMember {
+  id           String  @id @default(uuid())
+  name         String
+  role         String
+  department   String
+  email        String?
+  photoUrl     String?
+  bio          String?
+  linkedIn     String?
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([department])
+  @@index([displayOrder])
+}
+
+// Changelog for tracking changes
+model Changelog {
+  id          String   @id @default(uuid())
+  action      String // "created" | "updated" | "deleted"
+  entityType  String // "asset" | "docs_update" | "product_update"
+  entityId    String
+  entityTitle String
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Optional relations
+  asset           Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  assetId         String?
+  docsUpdate      DocsUpdate?    @relation(fields: [docsUpdateId], references: [id], onDelete: SetNull)
+  docsUpdateId    String?
+  productUpdate   ProductUpdate? @relation(fields: [productUpdateId], references: [id], onDelete: SetNull)
+  productUpdateId String?
+
+  @@index([createdAt])
+  @@index([entityType])
+}
+
+// Featured content for "This Month for Partners"
+model FeaturedContent {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  displayOrder Int      @default(0)
+  entityType   String // "asset" | "docs_update" | "product_update"
+
+  // Relations
+  asset           Asset?         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId         String?
+  docsUpdate      DocsUpdate?    @relation(fields: [docsUpdateId], references: [id], onDelete: Cascade)
+  docsUpdateId    String?
+  productUpdate   ProductUpdate? @relation(fields: [productUpdateId], references: [id], onDelete: Cascade)
+  productUpdateId String?
+
+  // Validity period
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([displayOrder])
+}
+
+// Digest state for weekly email
+model DigestState {
+  id             String    @id @default("singleton")
+  lastSentAt     DateTime?
+  lastStatus     String? // "success" | "failed" | "skipped"
+  recipientCount Int?
+  updatedAt      DateTime  @updatedAt
+}
+
+// Allowed domains for partner access
+model AllowedDomain {
+  id          String   @id @default(uuid())
+  domain      String   @unique // e.g., "partner-company.com"
+  companyName String?  // e.g., "Partner Company Inc."
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([domain])
+  @@index([isActive])
+}
