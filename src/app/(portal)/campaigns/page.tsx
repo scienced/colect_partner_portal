@@ -1,17 +1,14 @@
-import { prisma } from "@/lib/prisma"
+"use client"
+
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { Mail, ExternalLink, Target } from "lucide-react"
+import { useCampaigns } from "@/lib/swr"
 
-export default async function CampaignsPage() {
-  const campaigns = await prisma.asset.findMany({
-    where: {
-      type: "CAMPAIGN",
-      publishedAt: { not: null },
-    },
-    orderBy: { publishedAt: "desc" },
-  })
+export default function CampaignsPage() {
+  const { data, isLoading, error } = useCampaigns()
+  const campaigns = data?.assets || []
 
   return (
     <div className="space-y-6">
@@ -20,9 +17,15 @@ export default async function CampaignsPage() {
         description="Email templates and campaign materials"
       />
 
-      {campaigns.length > 0 ? (
+      {isLoading ? (
+        <CampaignsLoading />
+      ) : error ? (
+        <Card padding="lg" className="text-center">
+          <p className="text-red-500">Failed to load campaigns</p>
+        </Card>
+      ) : campaigns.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {campaigns.map((campaign) => (
+          {campaigns.map((campaign: any) => (
             <Card key={campaign.id} hover padding="lg">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -41,9 +44,9 @@ export default async function CampaignsPage() {
                       <span>{campaign.campaignGoal}</span>
                     </div>
                   )}
-                  {campaign.language.length > 0 && (
+                  {campaign.language?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-3">
-                      {campaign.language.map((l) => (
+                      {campaign.language.map((l: string) => (
                         <StatusBadge key={l} status="info">
                           {l}
                         </StatusBadge>
@@ -72,6 +75,25 @@ export default async function CampaignsPage() {
           <p className="text-gray-500">No campaigns available yet</p>
         </Card>
       )}
+    </div>
+  )
+}
+
+function CampaignsLoading() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i} padding="lg">
+          <div className="flex items-start gap-4 animate-pulse">
+            <div className="w-12 h-12 bg-gray-200 rounded-lg" />
+            <div className="flex-1">
+              <div className="h-5 bg-gray-200 rounded w-1/2 mb-2" />
+              <div className="h-4 bg-gray-200 rounded w-full mb-2" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   )
 }

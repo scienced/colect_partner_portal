@@ -73,4 +73,39 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Fast tooltip */
+  .tooltip {
+    position: relative;
+  }
+
+  .tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    margin-bottom: 6px;
+    padding: 6px 10px;
+    background: #1f2937;
+    color: white;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    border-radius: 6px;
+    white-space: normal;
+    max-width: 280px;
+    width: max-content;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  .tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0.2s;
+  }
 }

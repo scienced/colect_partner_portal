@@ -15,6 +15,7 @@ const s3Client = new S3Client({
 })
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || ""
+const AWS_REGION = process.env.AWS_REGION || "eu-west-1"
 
 export interface PresignedUploadUrl {
   uploadUrl: string
@@ -86,4 +87,70 @@ export function getKeyFromUrl(url: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Check if a URL is an S3 URL from our bucket
+ */
+export function isS3Url(url: string | null | undefined): boolean {
+  if (!url) return false
+  return url.includes(".s3.") && url.includes("amazonaws.com")
+}
+
+/**
+ * Generate presigned URL for a file if it's an S3 URL, otherwise return as-is
+ */
+export async function getPresignedUrlIfNeeded(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null
+  if (!isS3Url(url)) return url
+
+  const key = getKeyFromUrl(url)
+  if (!key) return url
+
+  return getPresignedDownloadUrl(key)
+}
+
+/**
+ * Generate presigned URLs for multiple S3 URLs in parallel
+ */
+export async function getPresignedUrls(urls: (string | null | undefined)[]): Promise<(string | null)[]> {
+  return Promise.all(urls.map(url => getPresignedUrlIfNeeded(url)))
+}
+
+/**
+ * Upload a processed thumbnail buffer directly to S3
+ */
+export async function uploadThumbnail(buffer: Buffer, filename: string): Promise<string> {
+  const key = `thumbnails/${filename}`
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: buffer,
+    ContentType: "image/jpeg",
+  })
+
+  await s3Client.send(command)
+
+  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+}
+
+/**
+ * Upload any buffer to S3 with specified content type
+ */
+export async function uploadBuffer(
+  buffer: Buffer,
+  key: string,
+  contentType: string
+): Promise<string> {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+  })
+
+  await s3Client.send(command)
+
+  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
 }

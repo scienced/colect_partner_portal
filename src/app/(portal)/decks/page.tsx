@@ -1,17 +1,14 @@
-import { prisma } from "@/lib/prisma"
+"use client"
+
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
-import { FileText, Download, ExternalLink } from "lucide-react"
+import { FileText, Download } from "lucide-react"
+import { useDecks } from "@/lib/swr"
 
-export default async function DecksPage() {
-  const decks = await prisma.asset.findMany({
-    where: {
-      type: "DECK",
-      publishedAt: { not: null },
-    },
-    orderBy: { publishedAt: "desc" },
-  })
+export default function DecksPage() {
+  const { data, isLoading, error } = useDecks()
+  const decks = data?.assets || []
 
   return (
     <div className="space-y-6">
@@ -20,9 +17,15 @@ export default async function DecksPage() {
         description="Browse and download sales presentations"
       />
 
-      {decks.length > 0 ? (
+      {isLoading ? (
+        <DecksLoading />
+      ) : error ? (
+        <Card padding="lg" className="text-center">
+          <p className="text-red-500">Failed to load decks</p>
+        </Card>
+      ) : decks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {decks.map((deck) => (
+          {decks.map((deck: any) => (
             <Card key={deck.id} hover padding="md">
               <div className="flex flex-col h-full">
                 {deck.thumbnailUrl ? (
@@ -44,9 +47,9 @@ export default async function DecksPage() {
                     {deck.description}
                   </p>
                 )}
-                {deck.language.length > 0 && (
+                {deck.language?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {deck.language.map((l) => (
+                    {deck.language.map((l: string) => (
                       <StatusBadge key={l} status="info">
                         {l}
                       </StatusBadge>
@@ -74,6 +77,22 @@ export default async function DecksPage() {
           <p className="text-gray-500">No sales decks available yet</p>
         </Card>
       )}
+    </div>
+  )
+}
+
+function DecksLoading() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[...Array(6)].map((_, i) => (
+        <Card key={i} padding="md">
+          <div className="animate-pulse">
+            <div className="aspect-video bg-gray-200 rounded-md mb-4" />
+            <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-4 bg-gray-200 rounded w-full" />
+          </div>
+        </Card>
+      ))}
     </div>
   )
 }

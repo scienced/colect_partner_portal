@@ -41,7 +41,32 @@ export function FileUploader({
       setUploading(true)
 
       try {
-        // Get presigned URL
+        // For thumbnails, use server-side processing to generate optimized images
+        if (folder === "thumbnails" && file.type.startsWith("image/")) {
+          const formData = new FormData()
+          formData.append("file", file)
+
+          const response = await fetch("/api/upload/thumbnail", {
+            method: "POST",
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.error || "Failed to upload thumbnail")
+          }
+
+          const { thumbnailUrl, originalSize, thumbnailSize } = await response.json()
+
+          // Log compression results
+          const compressionRatio = ((1 - thumbnailSize / originalSize) * 100).toFixed(1)
+          console.log(`Thumbnail optimized: ${(originalSize / 1024).toFixed(0)}KB → ${(thumbnailSize / 1024).toFixed(0)}KB (${compressionRatio}% smaller)`)
+
+          onUploadComplete(thumbnailUrl)
+          return
+        }
+
+        // For other files, use presigned URL flow
         const presignResponse = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

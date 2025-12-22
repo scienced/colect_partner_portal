@@ -1,353 +1,305 @@
-import { prisma } from "@/lib/prisma"
-import { Card } from "@/components/ui/Card"
-import { Button } from "@/components/ui/Button"
-import { PageHeader } from "@/components/layout/SectionHeader"
-import Link from "next/link"
+"use client"
+
+import { ContentRow } from "@/components/portal/ContentRow"
 import { formatDistanceToNow } from "date-fns"
-import {
-  ArrowRight,
-  FileText,
-  Download,
-  Play,
-  Plus,
-  RefreshCw,
-  Link as LinkIcon,
-  MessageSquare,
-  HelpCircle,
-} from "lucide-react"
+import { Sparkles } from "lucide-react"
+import { useHomepageData } from "@/lib/swr"
 
-// Mock thumbnail colors for demo
-const thumbnailColors = [
-  "from-blue-400 to-blue-600",
-  "from-purple-400 to-purple-600",
-  "from-green-400 to-green-600",
-  "from-orange-400 to-orange-600",
-  "from-pink-400 to-pink-600",
-  "from-teal-400 to-teal-600",
-]
+export default function HomePage() {
+  const { data, isLoading, error } = useHomepageData()
 
-export default async function DashboardPage() {
-  const [featuredContent, changelog, latestDecks, latestAssets, quickLinks] =
-    await Promise.all([
-      prisma.featuredContent.findMany({
-        where: {
-          OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
-        },
-        orderBy: { displayOrder: "asc" },
-        take: 5,
-        include: {
-          asset: true,
-          docsUpdate: true,
-          productUpdate: true,
-        },
-      }),
-      prisma.changelog.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-      prisma.asset.findMany({
-        where: {
-          type: "DECK",
-          publishedAt: { not: null },
-        },
-        orderBy: { publishedAt: "desc" },
-        take: 4,
-      }),
-      // Latest assets (all types except DECK)
-      prisma.asset.findMany({
-        where: {
-          type: { in: ["CAMPAIGN", "VIDEO", "ASSET"] },
-          publishedAt: { not: null },
-        },
-        orderBy: { publishedAt: "desc" },
-        take: 4,
-      }),
-      // Quick links (ASSET type only)
-      prisma.asset.findMany({
-        where: {
-          type: "ASSET",
-          publishedAt: { not: null },
-        },
-        orderBy: { publishedAt: "desc" },
-        take: 4,
-      }),
-    ])
+  if (isLoading) {
+    return <HomepageLoading />
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">Failed to load homepage data</p>
+      </div>
+    )
+  }
+
+  const {
+    featured = [],
+    decks = [],
+    videos = [],
+    campaigns = [],
+    assets = [],
+    docsUpdates = [],
+    recentlyUpdated = [],
+  } = data || {}
+
+  // Transform data for content rows
+  const deckItems = decks.map((deck: any) => ({
+    id: deck.id,
+    title: deck.title,
+    description: deck.description,
+    thumbnailUrl: deck.thumbnailUrl,
+    href: deck.fileUrl || "/decks",
+    external: !!deck.fileUrl,
+    fileUrl: deck.fileUrl,
+    meta: deck.language?.length > 0 ? deck.language.join(" / ") : undefined,
+    category: "deck" as const,
+  }))
+
+  const videoItems = videos.map((video: any) => ({
+    id: video.id,
+    title: video.title,
+    description: video.description,
+    thumbnailUrl: video.thumbnailUrl || getYouTubeThumbnail(video.externalLink),
+    href: video.externalLink || video.fileUrl || "/videos",
+    external: true,
+    meta: video.language?.length > 0 ? video.language.join(" / ") : undefined,
+    category: "video" as const,
+  }))
+
+  const campaignItems = campaigns.map((campaign: any) => ({
+    id: campaign.id,
+    title: campaign.title,
+    description: campaign.description,
+    thumbnailUrl: campaign.thumbnailUrl,
+    href: campaign.campaignLink || "/campaigns",
+    external: !!campaign.campaignLink,
+    meta: campaign.campaignGoal || undefined,
+    category: "campaign" as const,
+  }))
+
+  const assetItems = assets.map((asset: any) => ({
+    id: asset.id,
+    title: asset.title,
+    description: asset.description,
+    thumbnailUrl: asset.thumbnailUrl,
+    href: asset.externalLink || asset.fileUrl || "/assets",
+    external: !!(asset.externalLink || asset.fileUrl),
+    category: "asset" as const,
+  }))
+
+  const docsItems = docsUpdates.map((doc: any) => ({
+    id: doc.id,
+    title: doc.title,
+    description: doc.summary,
+    href: doc.deepLink,
+    external: true,
+    meta: doc.publishedAt ? formatDistanceToNow(new Date(doc.publishedAt), { addSuffix: true }) : undefined,
+    category: "docs" as const,
+  }))
+
+  const recentItems = recentlyUpdated.map((item: any) => {
+    const isNew = Math.abs(new Date(item.createdAt).getTime() - new Date(item.updatedAt).getTime()) < 60000
+    return {
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      thumbnailUrl: item.thumbnailUrl,
+      href: getAssetHref(item),
+      external: shouldOpenExternal(item),
+      meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
+      category: item.type.toLowerCase() as any,
+      status: isNew ? "new" as const : "updated" as const,
+    }
+  })
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Partner Dashboard"
-        description="Welcome to the Colect Partner Portal"
-      />
-
-      <div className="flex gap-6">
-        {/* Main Content */}
-        <div className="flex-1 space-y-6">
-          {/* This Month for Partners */}
-          <Card padding="lg">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              This Month for Partners
-            </h2>
-            {featuredContent.length > 0 ? (
-              <ul className="space-y-3">
-                {featuredContent.map((item) => {
-                  const title =
-                    item.asset?.title ||
-                    item.docsUpdate?.title ||
-                    item.productUpdate?.title ||
-                    item.title
-                  const type = item.entityType
-                  return (
-                    <li key={item.id} className="flex items-start gap-3">
-                      <span className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <div>
-                        <span className="text-gray-500 text-sm">
-                          {type === "asset" && "New: "}
-                          {type === "docs_update" && "Documentation: "}
-                          {type === "product_update" && "Product: "}
-                        </span>
-                        <Link
-                          href={
-                            type === "asset"
-                              ? "/decks"
-                              : type === "docs_update"
-                              ? "/docs-updates"
-                              : "/product"
-                          }
-                          className="text-primary hover:underline font-medium"
-                        >
-                          {title}
-                        </Link>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="text-gray-500 text-sm">No featured content this month</p>
-            )}
-          </Card>
-
-          {/* Latest Sales Decks */}
-          <Card padding="lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Latest Sales Decks</h2>
-              <Link href="/decks">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconAfter={<ArrowRight className="w-4 h-4" />}
-                >
-                  View all
-                </Button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {latestDecks.map((deck, index) => (
-                <div key={deck.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                  {/* Thumbnail */}
-                  <div className={`h-28 bg-gradient-to-br ${thumbnailColors[index % thumbnailColors.length]} flex items-center justify-center`}>
-                    {deck.thumbnailUrl ? (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      {featured.length > 0 && (
+        <div className="-m-6 mb-6 bg-gradient-to-br from-primary/10 via-white to-blue-50 px-6 py-8 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-gray-900">Featured This Month</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {featured.slice(0, 3).map((item: any) => (
+              <a
+                key={item.id}
+                href={item.href}
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+                className="group bg-white hover:bg-gray-50 rounded-xl p-4 transition-all shadow-sm hover:shadow-md border border-gray-100"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
+                    {item.thumbnailUrl ? (
                       <img
-                        src={deck.thumbnailUrl}
-                        alt={deck.title}
-                        className="w-full h-full object-cover"
+                        src={item.thumbnailUrl}
+                        alt=""
+                        className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <FileText className="w-10 h-10 text-white/70" />
+                      <span className="text-white/90 text-2xl font-bold">
+                        {item.title[0]}
+                      </span>
                     )}
                   </div>
-                  <div className="p-3">
-                    <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-1">{deck.title}</h3>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                      {deck.language.length > 0 && (
-                        <span>{deck.language.join(" / ")}</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">
-                      Updated{" "}
-                      {deck.publishedAt &&
-                        formatDistanceToNow(deck.publishedAt, { addSuffix: true })}
-                    </p>
-                    {deck.fileUrl ? (
-                      <a
-                        href={deck.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="primary" size="sm" className="w-full" icon={<Download className="w-3 h-3" />}>
-                          Download
-                        </Button>
-                      </a>
-                    ) : (
-                      <Button variant="secondary" size="sm" className="w-full" disabled>
-                        No file
-                      </Button>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs text-primary font-medium uppercase tracking-wide">
+                      {item.category}
+                    </span>
+                    <h3
+                      className="font-semibold text-gray-900 mt-1 line-clamp-1 group-hover:text-primary transition-colors tooltip"
+                      data-tooltip={item.title}
+                    >
+                      {item.title}
+                    </h3>
+                    {item.description && (
+                      <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+                        {item.description}
+                      </p>
                     )}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Content Rows */}
+      <div className="-mx-6 space-y-2 pb-8">
+        <ContentRow
+          title="Latest Sales Decks"
+          viewAllHref="/decks"
+          items={deckItems}
+          variant="large"
+        />
+
+        {videoItems.length > 0 && (
+          <ContentRow
+            title="Videos"
+            viewAllHref="/videos"
+            items={videoItems}
+            variant="large"
+          />
+        )}
+
+        {campaignItems.length > 0 && (
+          <ContentRow
+            title="Campaigns & Emails"
+            viewAllHref="/campaigns"
+            items={campaignItems}
+          />
+        )}
+
+        {docsItems.length > 0 && (
+          <ContentRow
+            title="Documentation Updates"
+            viewAllHref="/docs-updates"
+            items={docsItems}
+            variant="docs"
+          />
+        )}
+
+        {assetItems.length > 0 && (
+          <ContentRow
+            title="Assets & Links"
+            viewAllHref="/assets"
+            items={assetItems}
+          />
+        )}
+
+        {recentItems.length > 0 && (
+          <ContentRow
+            title="Recently Updated"
+            items={recentItems}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Helper functions
+function getYouTubeThumbnail(url: string | null): string | undefined {
+  if (!url) return undefined
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) {
+      return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
+    }
+  }
+  return undefined
+}
+
+function getAssetHref(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): string {
+  switch (asset.type) {
+    case "DECK":
+      return asset.fileUrl || "/decks"
+    case "VIDEO":
+      return asset.externalLink || asset.fileUrl || "/videos"
+    case "CAMPAIGN":
+      return asset.campaignLink || "/campaigns"
+    case "ASSET":
+      return asset.externalLink || asset.fileUrl || "/assets"
+    default:
+      return "/"
+  }
+}
+
+function shouldOpenExternal(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): boolean {
+  switch (asset.type) {
+    case "DECK":
+      return !!asset.fileUrl
+    case "VIDEO":
+      return !!(asset.externalLink || asset.fileUrl)
+    case "CAMPAIGN":
+      return !!asset.campaignLink
+    case "ASSET":
+      return !!(asset.externalLink || asset.fileUrl)
+    default:
+      return false
+  }
+}
+
+function HomepageLoading() {
+  return (
+    <div className="min-h-screen">
+      {/* Hero Skeleton */}
+      <div className="-m-6 mb-6 bg-gradient-to-br from-primary/10 via-white to-blue-50 px-6 py-8 border-b border-gray-200">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
+          <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl p-4 border border-gray-100">
+              <div className="flex items-start gap-4 animate-pulse">
+                <div className="w-16 h-16 bg-gray-200 rounded-lg" />
+                <div className="flex-1">
+                  <div className="h-3 w-16 bg-gray-200 rounded mb-2" />
+                  <div className="h-5 w-3/4 bg-gray-200 rounded mb-2" />
+                  <div className="h-4 w-full bg-gray-200 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Content Row Skeletons */}
+      <div className="-mx-6 space-y-6 pb-8">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="px-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+            </div>
+            <div className="flex gap-4 overflow-hidden">
+              {[...Array(4)].map((_, j) => (
+                <div key={j} className="w-72 flex-shrink-0 animate-pulse">
+                  <div className="h-40 bg-gray-200 rounded-t-xl" />
+                  <div className="p-3 bg-white rounded-b-xl shadow-sm">
+                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
+                    <div className="h-4 bg-gray-200 rounded w-full" />
                   </div>
                 </div>
               ))}
             </div>
-            {latestDecks.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-8">No sales decks available yet</p>
-            )}
-          </Card>
-
-          {/* Latest Assets */}
-          <Card padding="lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Latest Assets</h2>
-              <Link href="/assets">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconAfter={<ArrowRight className="w-4 h-4" />}
-                >
-                  View all
-                </Button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {latestAssets.map((asset, index) => {
-                const typeLabels: Record<string, string> = {
-                  CAMPAIGN: "Campaign",
-                  VIDEO: "Video",
-                  ASSET: "Asset",
-                }
-                const typeColors: Record<string, string> = {
-                  CAMPAIGN: "from-purple-400 to-purple-600",
-                  VIDEO: "from-red-400 to-red-600",
-                  ASSET: "from-teal-400 to-teal-600",
-                }
-                return (
-                  <div key={asset.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                    <div className={`h-28 bg-gradient-to-br ${typeColors[asset.type] || thumbnailColors[index % thumbnailColors.length]} flex items-center justify-center`}>
-                      {asset.thumbnailUrl ? (
-                        <img
-                          src={asset.thumbnailUrl}
-                          alt={asset.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : asset.type === "VIDEO" ? (
-                        <Play className="w-10 h-10 text-white/70" />
-                      ) : (
-                        <FileText className="w-10 h-10 text-white/70" />
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                          {typeLabels[asset.type] || asset.type}
-                        </span>
-                      </div>
-                      <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-1">{asset.title}</h3>
-                      <p className="text-xs text-gray-400">
-                        {asset.publishedAt &&
-                          formatDistanceToNow(asset.publishedAt, { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            {latestAssets.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-8">No assets available yet</p>
-            )}
-          </Card>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="w-72 flex-shrink-0 space-y-6">
-          {/* What Changed */}
-          <Card padding="lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">What Changed</h3>
-            <div className="space-y-3">
-              {changelog.length > 0 ? (
-                changelog.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3">
-                    <div
-                      className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
-                        item.action === "created"
-                          ? "bg-green-50"
-                          : item.action === "updated"
-                          ? "bg-blue-50"
-                          : "bg-gray-100"
-                      }`}
-                    >
-                      {item.action === "created" ? (
-                        <Plus className="w-3 h-3 text-green-600" />
-                      ) : (
-                        <RefreshCw className="w-3 h-3 text-blue-600" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="text-gray-500 capitalize">{item.action}: </span>
-                        <span className="text-primary font-medium">
-                          {item.entityTitle}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {formatDistanceToNow(item.createdAt, { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No recent changes</p>
-              )}
-            </div>
-          </Card>
-
-          {/* Quick Links */}
-          <Card padding="lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Quick Links
-            </h3>
-            <div className="space-y-2">
-              {quickLinks.length > 0 ? (
-                quickLinks.map((asset) => (
-                  <a
-                    key={asset.id}
-                    href={asset.externalLink || asset.fileUrl || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <LinkIcon className="w-4 h-4 text-gray-500" />
-                    </div>
-                    <span className="text-sm text-primary font-medium">{asset.title}</span>
-                  </a>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No quick links available</p>
-              )}
-            </div>
-            <div className="mt-4">
-              <Link href="/assets">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconAfter={<ArrowRight className="w-4 h-4" />}
-                  className="w-full justify-center"
-                >
-                  View All Links
-                </Button>
-              </Link>
-            </div>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button variant="primary" className="w-full" icon={<MessageSquare className="w-4 h-4" />}>
-              Contact Partner Support
-            </Button>
-            <Button variant="secondary" className="w-full" icon={<HelpCircle className="w-4 h-4" />}>
-              Request an Asset
-            </Button>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   )

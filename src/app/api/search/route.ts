@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireSession } from "@/lib/supertokens/session"
+import { getServerSession } from "@/lib/supertokens/session"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireSession()
+    // Check session but don't require it strictly - portal layout already handles auth
+    const session = await getServerSession()
+    if (!session) {
+      return NextResponse.json({ results: [], error: "Not authenticated" })
+    }
 
     const { searchParams } = new URL(request.url)
     const query = searchParams.get("q")?.trim()

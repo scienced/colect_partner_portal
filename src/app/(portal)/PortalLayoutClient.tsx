@@ -1,8 +1,7 @@
 "use client"
 
 import { SuperTokensProvider } from "@/components/auth/SuperTokensProvider"
-import { PortalHeader } from "@/components/portal/PortalHeader"
-import { PortalSidebar } from "@/components/portal/PortalSidebar"
+import { PortalSidebarV2 } from "@/components/portal/PortalSidebarV2"
 
 interface PortalLayoutClientProps {
   user: {
@@ -19,13 +18,10 @@ export function PortalLayoutClient({ user, children }: PortalLayoutClientProps) 
   return (
     <SuperTokensProvider>
       <div className="min-h-screen bg-gray-50 flex">
-        <PortalSidebar isAdmin={isAdmin} />
-        <div className="flex-1 flex flex-col">
-          <PortalHeader user={user} />
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="max-w-6xl">{children}</div>
-          </main>
-        </div>
+        <PortalSidebarV2 user={user} isAdmin={isAdmin} />
+        <main className="flex-1 overflow-auto p-6">
+          {children}
+        </main>
       </div>
     </SuperTokensProvider>
   )
