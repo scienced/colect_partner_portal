@@ -133,7 +133,16 @@ export function isS3Url(url: string | null | undefined): boolean {
 }
 
 /**
+ * Check if a key is for a public thumbnail
+ * Thumbnails are stored in the thumbnails/ folder and are publicly accessible
+ */
+function isPublicThumbnail(key: string): boolean {
+  return key.startsWith("thumbnails/")
+}
+
+/**
  * Generate presigned URL for a file if it's an S3 URL, otherwise return as-is
+ * Thumbnails are public and don't need presigning
  */
 export async function getPresignedUrlIfNeeded(url: string | null | undefined): Promise<string | null> {
   if (!url) return null
@@ -141,6 +150,11 @@ export async function getPresignedUrlIfNeeded(url: string | null | undefined): P
 
   const key = getKeyFromUrl(url)
   if (!key) return url
+
+  // Thumbnails are public - return direct URL without presigning
+  if (isPublicThumbnail(key)) {
+    return url
+  }
 
   return getPresignedDownloadUrl(key)
 }
