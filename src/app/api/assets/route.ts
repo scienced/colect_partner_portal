@@ -21,6 +21,7 @@ const AssetSchema = z.object({
   templateContent: z.string().optional(),
   externalLink: z.string().optional(),
   publishedAt: z.string().datetime().optional().nullable(),
+  sentAt: z.string().datetime().optional().nullable(),
 })
 
 // GET: List assets (with search and filters)
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
+        sentAt: data.sentAt ? new Date(data.sentAt) : null,
       },
     })
 

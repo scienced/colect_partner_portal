@@ -10,6 +10,9 @@ export async function createChangelog(
   entityTitle: string,
   description?: string
 ) {
+  // Don't link to entity if it's been deleted (foreign key would fail)
+  const shouldLinkEntity = action !== "deleted"
+
   await prisma.changelog.create({
     data: {
       action,
@@ -17,9 +20,9 @@ export async function createChangelog(
       entityId,
       entityTitle,
       description,
-      ...(entityType === "asset" ? { assetId: entityId } : {}),
-      ...(entityType === "docs_update" ? { docsUpdateId: entityId } : {}),
-      ...(entityType === "product_update" ? { productUpdateId: entityId } : {}),
+      ...(shouldLinkEntity && entityType === "asset" ? { assetId: entityId } : {}),
+      ...(shouldLinkEntity && entityType === "docs_update" ? { docsUpdateId: entityId } : {}),
+      ...(shouldLinkEntity && entityType === "product_update" ? { productUpdateId: entityId } : {}),
     },
   })
 }

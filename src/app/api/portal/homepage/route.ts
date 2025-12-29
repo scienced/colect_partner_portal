@@ -18,7 +18,8 @@ export async function GET() {
       latestCampaigns,
       latestAssets,
       docsUpdates,
-      recentlyUpdated,
+      recentAssets,
+      recentDocs,
     ] = await Promise.all([
       prisma.featuredContent.findMany({
         where: {
@@ -62,7 +63,31 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
         take: 10,
       }),
+      prisma.docsUpdate.findMany({
+        where: { publishedAt: { not: null } },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+      }),
     ])
+
+    // Merge and sort recently updated items (assets + docs)
+    const recentlyUpdated = [
+      ...recentAssets.map(a => ({ ...a, _type: "asset" as const })),
+      ...recentDocs.map(d => ({
+        id: d.id,
+        type: "DOCS" as const,
+        title: d.title,
+        description: d.summary,
+        thumbnailUrl: null,
+        fileUrl: null,
+        externalLink: d.deepLink,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+        _type: "docs" as const,
+      })),
+    ]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 10)
 
     // Generate presigned URLs for all assets
     const [decks, videos, campaigns, assets, recent] = await Promise.all([
@@ -79,16 +104,17 @@ export async function GET() {
       Promise.all(latestCampaigns.map(async (a) => ({
         ...a,
         thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
+        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
       Promise.all(latestAssets.map(async (a) => ({
         ...a,
         thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
-      Promise.all(recentlyUpdated.map(async (a) => ({
-        ...a,
-        thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
+      Promise.all(recentlyUpdated.map(async (item) => ({
+        ...item,
+        thumbnailUrl: item.thumbnailUrl ? await getPresignedUrlIfNeeded(item.thumbnailUrl) : null,
+        fileUrl: item.fileUrl ? await getPresignedUrlIfNeeded(item.fileUrl) : null,
       }))),
     ])
 
@@ -100,22 +126,54 @@ export async function GET() {
       if (asset) {
         return {
           id: item.id,
-          title: asset.title,
-          description: asset.description || item.description,
+          title: item.title || asset.title,
+          description: item.description || asset.description,
           thumbnailUrl: await getPresignedUrlIfNeeded(asset.thumbnailUrl),
           href: await getAssetHref(asset),
           external: shouldOpenExternal(asset),
           category: asset.type.toLowerCase(),
+          // Include full asset data for drawer
+          asset: {
+            id: asset.id,
+            type: asset.type,
+            title: asset.title,
+            description: asset.description,
+            thumbnailUrl: await getPresignedUrlIfNeeded(asset.thumbnailUrl),
+            fileUrl: await getPresignedUrlIfNeeded(asset.fileUrl),
+            externalLink: asset.externalLink,
+            language: asset.language,
+            persona: asset.persona,
+            campaignGoal: asset.campaignGoal,
+            sentAt: asset.sentAt,
+            createdAt: asset.createdAt,
+            updatedAt: asset.updatedAt,
+          },
         }
       }
       if (docsUpdate) {
         return {
           id: item.id,
-          title: docsUpdate.title,
-          description: docsUpdate.summary || item.description,
+          title: item.title || docsUpdate.title,
+          description: item.description || docsUpdate.summary,
           href: docsUpdate.deepLink,
           external: true,
           category: "docs",
+          // Include docs data for drawer
+          asset: {
+            id: docsUpdate.id,
+            type: "DOCS",
+            title: docsUpdate.title,
+            description: docsUpdate.summary,
+            thumbnailUrl: null,
+            fileUrl: null,
+            externalLink: docsUpdate.deepLink,
+            language: [],
+            persona: [],
+            campaignGoal: null,
+            sentAt: null,
+            createdAt: docsUpdate.createdAt,
+            updatedAt: docsUpdate.updatedAt,
+          },
         }
       }
       return {
@@ -124,6 +182,7 @@ export async function GET() {
         description: item.description,
         href: "/",
         category: "deck",
+        asset: null,
       }
     }))
 
@@ -150,7 +209,7 @@ async function getAssetHref(asset: { type: string; fileUrl: string | null; exter
     case "VIDEO":
       return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/videos"
     case "CAMPAIGN":
-      return asset.campaignLink || "/campaigns"
+      return await getPresignedUrlIfNeeded(asset.fileUrl) || asset.campaignLink || "/campaigns"
     case "ASSET":
       return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/assets"
     default:
@@ -165,7 +224,7 @@ function shouldOpenExternal(asset: { type: string; fileUrl: string | null; exter
     case "VIDEO":
       return !!(asset.externalLink || asset.fileUrl)
     case "CAMPAIGN":
-      return !!asset.campaignLink
+      return !!(asset.fileUrl || asset.campaignLink)
     case "ASSET":
       return !!(asset.externalLink || asset.fileUrl)
     default:

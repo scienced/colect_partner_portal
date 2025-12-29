@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button"
 
 interface FileUploaderProps {
   onUploadComplete: (fileUrl: string) => void
-  folder?: "assets" | "thumbnails" | "team-photos" | "videos"
+  folder?: "assets" | "thumbnails" | "team-photos" | "videos" | "campaigns"
   accept?: string
   maxSizeMB?: number
   currentUrl?: string

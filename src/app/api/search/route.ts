@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/supertokens/session"
+import { trackSearchQuery } from "@/lib/analytics"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,11 @@ export async function GET(request: NextRequest) {
 
     if (!query || query.length < 2) {
       return NextResponse.json({ results: [] })
+    }
+
+    // Track search query (don't await to not block the search)
+    if (session.user) {
+      trackSearchQuery(session.user.id, session.user.email, query).catch(console.error)
     }
 
     const searchTerm = `%${query}%`
@@ -39,6 +45,15 @@ export async function GET(request: NextRequest) {
           title: true,
           type: true,
           description: true,
+          thumbnailUrl: true,
+          fileUrl: true,
+          externalLink: true,
+          language: true,
+          persona: true,
+          campaignGoal: true,
+          sentAt: true,
+          createdAt: true,
+          updatedAt: true,
         },
       }),
       prisma.docsUpdate.findMany({
@@ -108,6 +123,17 @@ export async function GET(request: NextRequest) {
         category: "asset" as const,
         type: a.type,
         href: a.type === "DECK" ? "/decks" : a.type === "CAMPAIGN" ? "/campaigns" : a.type === "VIDEO" ? "/videos" : "/assets",
+        // Full asset data for drawer
+        description: a.description,
+        thumbnailUrl: a.thumbnailUrl,
+        fileUrl: a.fileUrl,
+        externalLink: a.externalLink,
+        language: a.language,
+        persona: a.persona,
+        campaignGoal: a.campaignGoal,
+        sentAt: a.sentAt?.toISOString() || null,
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
       })),
       ...docsUpdates.map((d) => ({
         id: d.id,

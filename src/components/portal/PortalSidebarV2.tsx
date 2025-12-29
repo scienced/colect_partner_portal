@@ -16,6 +16,7 @@ import {
   ChevronDown,
   X,
   Loader2,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Session from "supertokens-web-js/recipe/session"
@@ -26,8 +27,26 @@ const navItems = [
   { href: "/campaigns", label: "Campaigns", icon: Mail },
   { href: "/videos", label: "Videos", icon: Play },
   { href: "/assets", label: "Assets & Links", icon: FolderOpen },
+  { href: "/docs-updates", label: "Documentation", icon: BookOpen },
   { href: "/who-is-who", label: "Who's Who", icon: Users },
 ]
+
+interface AssetInfo {
+  id: string
+  title: string
+  description?: string | null
+  type: string
+  category?: string
+  thumbnailUrl?: string | null
+  fileUrl?: string | null
+  externalLink?: string | null
+  language?: string[]
+  persona?: string[]
+  campaignGoal?: string | null
+  sentAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 interface PortalSidebarV2Props {
   isAdmin?: boolean
@@ -36,9 +55,10 @@ interface PortalSidebarV2Props {
     email: string
     role: string
   } | null
+  onAssetClick?: (asset: AssetInfo) => void
 }
 
-export function PortalSidebarV2({ isAdmin, user }: PortalSidebarV2Props) {
+export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -117,6 +137,28 @@ export function PortalSidebarV2({ isAdmin, user }: PortalSidebarV2Props) {
     setSearchOpen(false)
     setSearchQuery("")
     setSearchResults([])
+
+    // For asset results, open the drawer instead of navigating
+    if (result.category === "asset" && onAssetClick) {
+      onAssetClick({
+        id: result.id,
+        title: result.title,
+        description: result.description,
+        type: result.type,
+        category: result.type?.toLowerCase(),
+        thumbnailUrl: result.thumbnailUrl,
+        fileUrl: result.fileUrl,
+        externalLink: result.externalLink,
+        language: result.language,
+        persona: result.persona,
+        campaignGoal: result.campaignGoal,
+        sentAt: result.sentAt,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      })
+      return
+    }
+
     if (result.external) {
       window.open(result.href, "_blank")
     } else {
@@ -154,12 +196,16 @@ export function PortalSidebarV2({ isAdmin, user }: PortalSidebarV2Props) {
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
+            <img
+              src="/colect-logo.png"
+              alt="Colect"
+              className="w-10 h-10 rounded-xl"
+            />
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Colect</h2>
-              <p className="text-xs text-gray-500">Partner Portal</p>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-primary/10 text-primary">
+                Partner Portal
+              </span>
             </div>
           </div>
         </div>

@@ -154,3 +154,11 @@ export async function uploadBuffer(
 
   return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
 }
+
+/**
+ * Get the public URL for a campaign MHTML file
+ * Used for captureapi.net to access the file for screenshotting
+ */
+export function getCampaignPublicUrl(key: string): string {
+  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+}

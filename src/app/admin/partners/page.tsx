@@ -134,7 +134,6 @@ export default function PartnersPage() {
         <p className="text-sm text-blue-800">
           <strong>How it works:</strong> Only users with email addresses from approved domains can sign in.
           When someone tries to log in with an unauthorized domain, they&apos;ll see an error message.
-          The <code className="bg-blue-100 px-1 rounded">@colect.com</code> domain is always allowed.
         </p>
       </Card>
 

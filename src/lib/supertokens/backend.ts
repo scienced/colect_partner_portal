@@ -17,9 +17,6 @@ async function isEmailAllowed(email: string): Promise<boolean> {
   const domain = email.split("@")[1]?.toLowerCase()
   if (!domain) return false
 
-  // Always allow colect.com (admin domain)
-  if (domain === "colect.com") return true
-
   const allowedDomain = await prisma.allowedDomain.findFirst({
     where: {
       domain: domain,

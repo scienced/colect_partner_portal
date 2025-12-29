@@ -1,12 +1,102 @@
 "use client"
 
-import { ContentRow } from "@/components/portal/ContentRow"
+import { useState, useEffect, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
+import { ContentRow, ContentItem } from "@/components/portal/ContentRow"
+import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { formatDistanceToNow } from "date-fns"
-import { Sparkles } from "lucide-react"
+import { Sparkles, FileText, Play, Mail, ExternalLink, BookOpen, Star, Info } from "lucide-react"
 import { useHomepageData } from "@/lib/swr"
+
+// Category colors for featured items
+const categoryColors: Record<string, string> = {
+  deck: "from-blue-500 to-blue-600",
+  video: "from-red-500 to-red-600",
+  campaign: "from-purple-500 to-purple-600",
+  asset: "from-teal-500 to-teal-600",
+  docs: "from-amber-500 to-amber-600",
+}
+
+// Category icons for featured items
+const categoryIcons: Record<string, React.ReactNode> = {
+  deck: <FileText className="w-6 h-6 text-white" />,
+  video: <Play className="w-6 h-6 text-white" />,
+  campaign: <Mail className="w-6 h-6 text-white" />,
+  asset: <ExternalLink className="w-6 h-6 text-white" />,
+  docs: <BookOpen className="w-6 h-6 text-white" />,
+}
 
 export default function HomePage() {
   const { data, isLoading, error } = useHomepageData()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [selectedAsset, setSelectedAsset] = useState<ContentItem | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  // Helper to transform raw data to ContentItem with all fields
+  const transformToContentItem = useCallback((item: any): ContentItem => {
+    const category = item.type?.toLowerCase() || "asset"
+    return {
+      id: item.id,
+      title: item.title,
+      description: item.description || item.summary,
+      thumbnailUrl: item.thumbnailUrl,
+      type: item.type,
+      href: getAssetHref(item),
+      external: shouldOpenExternal(item),
+      fileUrl: item.fileUrl,
+      externalLink: item.externalLink || item.deepLink,
+      language: item.language,
+      persona: item.persona,
+      campaignGoal: item.campaignGoal,
+      sentAt: item.sentAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      category: category as any,
+    }
+  }, [])
+
+  const handleInfoClick = useCallback((item: ContentItem) => {
+    setSelectedAsset(item)
+    setDrawerOpen(true)
+    // Update URL without navigation
+    const url = new URL(window.location.href)
+    url.searchParams.set("asset", item.id)
+    router.replace(url.pathname + url.search, { scroll: false })
+  }, [router])
+
+  const handleDrawerClose = useCallback(() => {
+    setDrawerOpen(false)
+    setSelectedAsset(null)
+    // Remove asset param from URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete("asset")
+    router.replace(url.pathname + url.search, { scroll: false })
+  }, [router])
+
+  // Handle deep linking via URL params
+  useEffect(() => {
+    const assetId = searchParams.get("asset")
+    if (assetId && data) {
+      // Find the asset across all collections
+      const allItems = [
+        ...(data.decks || []),
+        ...(data.videos || []),
+        ...(data.campaigns || []),
+        ...(data.assets || []),
+        ...(data.docsUpdates || []).map((d: any) => ({
+          ...d,
+          type: "DOCS",
+          externalLink: d.deepLink,
+        })),
+        ...(data.recentlyUpdated || []),
+      ]
+      const found = allItems.find((item: any) => item.id === assetId)
+      if (found) {
+        handleInfoClick(transformToContentItem(found))
+      }
+    }
+  }, [searchParams, data, handleInfoClick, transformToContentItem])
 
   if (isLoading) {
     return <HomepageLoading />
@@ -31,72 +121,120 @@ export default function HomePage() {
   } = data || {}
 
   // Transform data for content rows
-  const deckItems = decks.map((deck: any) => ({
+  const deckItems: ContentItem[] = decks.map((deck: any) => ({
     id: deck.id,
     title: deck.title,
     description: deck.description,
     thumbnailUrl: deck.thumbnailUrl,
+    type: "DECK",
     href: deck.fileUrl || "/decks",
     external: !!deck.fileUrl,
     fileUrl: deck.fileUrl,
-    meta: deck.language?.length > 0 ? deck.language.join(" / ") : undefined,
+    externalLink: deck.externalLink,
     category: "deck" as const,
+    language: deck.language,
+    persona: deck.persona,
+    createdAt: deck.createdAt,
+    updatedAt: deck.updatedAt,
   }))
 
-  const videoItems = videos.map((video: any) => ({
+  const videoItems: ContentItem[] = videos.map((video: any) => ({
     id: video.id,
     title: video.title,
     description: video.description,
     thumbnailUrl: video.thumbnailUrl || getYouTubeThumbnail(video.externalLink),
+    type: "VIDEO",
     href: video.externalLink || video.fileUrl || "/videos",
     external: true,
-    meta: video.language?.length > 0 ? video.language.join(" / ") : undefined,
+    fileUrl: video.fileUrl,
+    externalLink: video.externalLink,
     category: "video" as const,
+    language: video.language,
+    persona: video.persona,
+    createdAt: video.createdAt,
+    updatedAt: video.updatedAt,
   }))
 
-  const campaignItems = campaigns.map((campaign: any) => ({
+  const campaignItems: ContentItem[] = campaigns.map((campaign: any) => ({
     id: campaign.id,
     title: campaign.title,
     description: campaign.description,
     thumbnailUrl: campaign.thumbnailUrl,
-    href: campaign.campaignLink || "/campaigns",
-    external: !!campaign.campaignLink,
-    meta: campaign.campaignGoal || undefined,
+    type: "CAMPAIGN",
+    href: campaign.fileUrl || campaign.campaignLink || "/campaigns",
+    external: !!(campaign.fileUrl || campaign.campaignLink),
+    fileUrl: campaign.fileUrl,
+    externalLink: campaign.campaignLink,
+    meta: campaign.sentAt
+      ? new Date(campaign.sentAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : undefined,
     category: "campaign" as const,
+    language: campaign.language,
+    persona: campaign.persona,
+    campaignGoal: campaign.campaignGoal,
+    sentAt: campaign.sentAt,
+    createdAt: campaign.createdAt,
+    updatedAt: campaign.updatedAt,
   }))
 
-  const assetItems = assets.map((asset: any) => ({
+  const assetItems: ContentItem[] = assets.map((asset: any) => ({
     id: asset.id,
     title: asset.title,
     description: asset.description,
     thumbnailUrl: asset.thumbnailUrl,
+    type: "ASSET",
     href: asset.externalLink || asset.fileUrl || "/assets",
     external: !!(asset.externalLink || asset.fileUrl),
+    fileUrl: asset.fileUrl,
+    externalLink: asset.externalLink,
     category: "asset" as const,
+    language: asset.language,
+    persona: asset.persona,
+    createdAt: asset.createdAt,
+    updatedAt: asset.updatedAt,
   }))
 
-  const docsItems = docsUpdates.map((doc: any) => ({
+  const docsItems: ContentItem[] = docsUpdates.map((doc: any) => ({
     id: doc.id,
     title: doc.title,
     description: doc.summary,
+    type: "DOCS",
     href: doc.deepLink,
     external: true,
+    externalLink: doc.deepLink,
     meta: doc.publishedAt ? formatDistanceToNow(new Date(doc.publishedAt), { addSuffix: true }) : undefined,
     category: "docs" as const,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   }))
 
-  const recentItems = recentlyUpdated.map((item: any) => {
+  const recentItems: ContentItem[] = recentlyUpdated.map((item: any) => {
     const isNew = Math.abs(new Date(item.createdAt).getTime() - new Date(item.updatedAt).getTime()) < 60000
     return {
       id: item.id,
       title: item.title,
       description: item.description,
       thumbnailUrl: item.thumbnailUrl,
+      type: item.type,
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
+      fileUrl: item.fileUrl,
+      externalLink: item.externalLink,
       meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
       category: item.type.toLowerCase() as any,
       status: isNew ? "new" as const : "updated" as const,
+      language: item.language,
+      persona: item.persona,
+      campaignGoal: item.campaignGoal,
+      sentAt: item.sentAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
     }
   })
 
@@ -111,45 +249,69 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {featured.slice(0, 3).map((item: any) => (
-              <a
+              <div
                 key={item.id}
-                href={item.href}
-                target={item.external ? "_blank" : undefined}
-                rel={item.external ? "noopener noreferrer" : undefined}
-                className="group bg-white hover:bg-gray-50 rounded-xl p-4 transition-all shadow-sm hover:shadow-md border border-gray-100"
+                className="group relative bg-white hover:bg-gray-50 rounded-xl p-4 transition-all shadow-sm hover:shadow-md border border-gray-100"
               >
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
-                    {item.thumbnailUrl ? (
-                      <img
-                        src={item.thumbnailUrl}
-                        alt=""
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <span className="text-white/90 text-2xl font-bold">
-                        {item.title[0]}
-                      </span>
-                    )}
+                <a
+                  href={item.href}
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noopener noreferrer" : undefined}
+                  className="block"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${categoryColors[item.category] || "from-primary to-primary/70"} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+                      {item.thumbnailUrl ? (
+                        <img
+                          src={item.thumbnailUrl}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        categoryIcons[item.category] || (
+                          <span className="text-white/90 text-2xl font-bold">
+                            {item.title[0]}
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 pr-8">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-primary font-medium uppercase tracking-wide">
+                          {item.category}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                          <Star className="w-3 h-3" fill="currentColor" />
+                          Featured
+                        </span>
+                      </div>
+                      <h3
+                        className="font-semibold text-gray-900 mt-1 line-clamp-1 group-hover:text-primary transition-colors tooltip"
+                        data-tooltip={item.title}
+                      >
+                        {item.title}
+                      </h3>
+                      {item.description && (
+                        <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs text-primary font-medium uppercase tracking-wide">
-                      {item.category}
-                    </span>
-                    <h3
-                      className="font-semibold text-gray-900 mt-1 line-clamp-1 group-hover:text-primary transition-colors tooltip"
-                      data-tooltip={item.title}
-                    >
-                      {item.title}
-                    </h3>
-                    {item.description && (
-                      <p className="text-sm text-gray-500 line-clamp-2 mt-1">
-                        {item.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </a>
+                </a>
+                {item.asset && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleInfoClick(transformToContentItem(item.asset))
+                    }}
+                    className="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100"
+                    title="View details"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -162,6 +324,7 @@ export default function HomePage() {
           viewAllHref="/decks"
           items={deckItems}
           variant="large"
+          onInfoClick={handleInfoClick}
         />
 
         {videoItems.length > 0 && (
@@ -170,6 +333,7 @@ export default function HomePage() {
             viewAllHref="/videos"
             items={videoItems}
             variant="large"
+            onInfoClick={handleInfoClick}
           />
         )}
 
@@ -178,6 +342,7 @@ export default function HomePage() {
             title="Campaigns & Emails"
             viewAllHref="/campaigns"
             items={campaignItems}
+            onInfoClick={handleInfoClick}
           />
         )}
 
@@ -187,6 +352,7 @@ export default function HomePage() {
             viewAllHref="/docs-updates"
             items={docsItems}
             variant="docs"
+            onInfoClick={handleInfoClick}
           />
         )}
 
@@ -195,6 +361,7 @@ export default function HomePage() {
             title="Assets & Links"
             viewAllHref="/assets"
             items={assetItems}
+            onInfoClick={handleInfoClick}
           />
         )}
 
@@ -202,9 +369,32 @@ export default function HomePage() {
           <ContentRow
             title="Recently Updated"
             items={recentItems}
+            onInfoClick={handleInfoClick}
           />
         )}
       </div>
+
+      {/* Asset Info Drawer */}
+      <AssetInfoDrawer
+        asset={selectedAsset ? {
+          id: selectedAsset.id,
+          title: selectedAsset.title,
+          description: selectedAsset.description,
+          type: selectedAsset.type || selectedAsset.category?.toUpperCase() || "ASSET",
+          category: selectedAsset.category,
+          thumbnailUrl: selectedAsset.thumbnailUrl,
+          fileUrl: selectedAsset.fileUrl,
+          externalLink: selectedAsset.externalLink,
+          language: selectedAsset.language,
+          persona: selectedAsset.persona,
+          campaignGoal: selectedAsset.campaignGoal,
+          sentAt: selectedAsset.sentAt,
+          createdAt: selectedAsset.createdAt || new Date().toISOString(),
+          updatedAt: selectedAsset.updatedAt || new Date().toISOString(),
+        } : null}
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+      />
     </div>
   )
 }
@@ -231,9 +421,11 @@ function getAssetHref(asset: { type: string; fileUrl: string | null; externalLin
     case "VIDEO":
       return asset.externalLink || asset.fileUrl || "/videos"
     case "CAMPAIGN":
-      return asset.campaignLink || "/campaigns"
+      return asset.fileUrl || asset.campaignLink || "/campaigns"
     case "ASSET":
       return asset.externalLink || asset.fileUrl || "/assets"
+    case "DOCS":
+      return asset.externalLink || "/docs-updates"
     default:
       return "/"
   }
@@ -246,9 +438,11 @@ function shouldOpenExternal(asset: { type: string; fileUrl: string | null; exter
     case "VIDEO":
       return !!(asset.externalLink || asset.fileUrl)
     case "CAMPAIGN":
-      return !!asset.campaignLink
+      return !!(asset.fileUrl || asset.campaignLink)
     case "ASSET":
       return !!(asset.externalLink || asset.fileUrl)
+    case "DOCS":
+      return !!asset.externalLink
     default:
       return false
   }

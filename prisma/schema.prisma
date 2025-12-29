@@ -21,6 +21,42 @@ enum UserRole {
   ADMIN
 }
 
+// Enum for analytics event types
+enum AnalyticsEventType {
+  PAGE_VIEW
+  ASSET_CLICK
+  ASSET_DOWNLOAD
+  SEARCH_QUERY
+}
+
+// Analytics events for tracking portal usage
+model AnalyticsEvent {
+  id          String             @id @default(uuid())
+  type        AnalyticsEventType
+
+  // User info (denormalized for efficient queries)
+  userId      String
+  userEmail   String
+  userDomain  String
+
+  // Event context
+  pagePath    String?
+  assetId     String?
+  assetTitle  String?
+  assetType   String?
+  searchQuery String?
+
+  createdAt   DateTime @default(now())
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([userId])
+  @@index([userDomain])
+  @@index([createdAt])
+  @@index([type, createdAt])
+}
+
 // Users table (synced with SuperTokens)
 model User {
   id        String   @id @default(uuid())
@@ -29,6 +65,8 @@ model User {
   role      UserRole @default(PARTNER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  analyticsEvents AnalyticsEvent[]
 }
 
 // Unified assets table (decks, campaigns, assets)
@@ -53,6 +91,7 @@ model Asset {
   campaignGoal    String?
   campaignLink    String?
   templateContent String?
+  sentAt          DateTime?  // When the campaign email was/will be sent
 
   // Asset-specific fields
   externalLink String?

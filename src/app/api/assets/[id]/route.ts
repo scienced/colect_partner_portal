@@ -20,6 +20,7 @@ const UpdateAssetSchema = z.object({
   templateContent: z.string().optional().nullable(),
   externalLink: z.string().optional().nullable(),
   publishedAt: z.string().datetime().optional().nullable(),
+  sentAt: z.string().datetime().optional().nullable(),
 })
 
 // GET: Get single asset
@@ -72,6 +73,7 @@ export async function PUT(
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : data.publishedAt === null ? null : undefined,
+        sentAt: data.sentAt ? new Date(data.sentAt) : data.sentAt === null ? null : undefined,
       },
     })
 

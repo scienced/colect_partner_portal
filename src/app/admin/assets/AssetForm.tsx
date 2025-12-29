@@ -1,17 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Asset, AssetType } from "@prisma/client"
 import { Button } from "@/components/ui/Button"
 import { Input, Textarea, Select, Checkbox } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { FileUploader } from "@/components/admin/FileUploader"
+import { Wand2 } from "lucide-react"
 
 interface AssetFormProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: Partial<Asset>) => Promise<void>
   initialData?: Asset
+  defaultType?: AssetType
 }
 
 const LANGUAGES = ["EN", "DE", "FR"]
@@ -22,10 +24,13 @@ export function AssetForm({
   onClose,
   onSubmit,
   initialData,
+  defaultType = "DECK",
 }: AssetFormProps) {
   const [loading, setLoading] = useState(false)
+  const [generatingThumbnail, setGeneratingThumbnail] = useState(false)
+  const [thumbnailError, setThumbnailError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    type: initialData?.type || ("DECK" as AssetType),
+    type: initialData?.type || defaultType,
     title: initialData?.title || "",
     description: initialData?.description || "",
     fileUrl: initialData?.fileUrl || "",
@@ -38,7 +43,35 @@ export function AssetForm({
     publishedAt: initialData?.publishedAt
       ? new Date(initialData.publishedAt).toISOString()
       : null,
+    sentAt: initialData?.sentAt
+      ? new Date(initialData.sentAt).toISOString().slice(0, 16)
+      : "",
   })
+
+  // Reset form when modal opens or initialData changes
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        type: initialData?.type || defaultType,
+        title: initialData?.title || "",
+        description: initialData?.description || "",
+        fileUrl: initialData?.fileUrl || "",
+        thumbnailUrl: initialData?.thumbnailUrl || "",
+        language: initialData?.language || [],
+        persona: initialData?.persona || [],
+        campaignGoal: initialData?.campaignGoal || "",
+        campaignLink: initialData?.campaignLink || "",
+        externalLink: initialData?.externalLink || "",
+        publishedAt: initialData?.publishedAt
+          ? new Date(initialData.publishedAt).toISOString()
+          : null,
+        sentAt: initialData?.sentAt
+          ? new Date(initialData.sentAt).toISOString().slice(0, 16)
+          : "",
+      })
+      setThumbnailError(null)
+    }
+  }, [open, initialData, defaultType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,9 +80,38 @@ export function AssetForm({
       await onSubmit({
         ...formData,
         publishedAt: formData.publishedAt ? new Date(formData.publishedAt) : null,
+        sentAt: formData.sentAt ? new Date(formData.sentAt) : null,
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const generateThumbnail = async (url: string) => {
+    if (!url) return
+
+    setGeneratingThumbnail(true)
+    setThumbnailError(null)
+
+    try {
+      const response = await fetch("/api/upload/campaign-thumbnail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ htmlUrl: url }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.details || error.error || "Failed to generate thumbnail")
+      }
+
+      const { thumbnailUrl } = await response.json()
+      setFormData(prev => ({ ...prev, thumbnailUrl }))
+    } catch (error) {
+      console.error("Thumbnail generation failed:", error)
+      setThumbnailError(error instanceof Error ? error.message : "Failed to generate thumbnail")
+    } finally {
+      setGeneratingThumbnail(false)
     }
   }
 
@@ -112,7 +174,46 @@ export function AssetForm({
           rows={3}
         />
 
-        {/* File upload - different for videos */}
+        {/* Asset-specific: External Link (before file upload so thumbnail can use it) */}
+        {formData.type === "ASSET" && (
+          <Input
+            label="External Link"
+            value={formData.externalLink}
+            onChange={(e) =>
+              setFormData({ ...formData, externalLink: e.target.value })
+            }
+            placeholder="https://figma.com/..."
+            helperText="Figma, demo environment, or other external link"
+          />
+        )}
+
+        {/* Deck-specific: External Link for Google Slides */}
+        {formData.type === "DECK" && (
+          <Input
+            label="Live Document Link (optional)"
+            value={formData.externalLink}
+            onChange={(e) =>
+              setFormData({ ...formData, externalLink: e.target.value })
+            }
+            placeholder="https://docs.google.com/presentation/..."
+            helperText="Google Slides or other live document URL"
+          />
+        )}
+
+        {/* Video-specific: YouTube URL (before file upload) */}
+        {formData.type === "VIDEO" && (
+          <Input
+            label="YouTube / Video URL"
+            value={formData.externalLink}
+            onChange={(e) =>
+              setFormData({ ...formData, externalLink: e.target.value })
+            }
+            placeholder="https://youtube.com/watch?v=... or https://youtu.be/..."
+            helperText="YouTube, Vimeo, or other video URL (if not uploading a file)"
+          />
+        )}
+
+        {/* File upload - different for videos and campaigns */}
         {formData.type === "VIDEO" ? (
           <FileUploader
             label="Video File (optional if using YouTube)"
@@ -123,6 +224,28 @@ export function AssetForm({
             }
             accept=".mp4,.mov,.webm,.avi"
             maxSizeMB={500}
+          />
+        ) : formData.type === "CAMPAIGN" ? (
+          <FileUploader
+            label="Campaign Email (HTML from SingleFile)"
+            folder="campaigns"
+            currentUrl={formData.fileUrl}
+            onUploadComplete={(url) =>
+              setFormData({ ...formData, fileUrl: url })
+            }
+            accept=".html,.htm"
+            maxSizeMB={20}
+          />
+        ) : formData.type === "ASSET" ? (
+          <FileUploader
+            label="File (optional)"
+            folder="assets"
+            currentUrl={formData.fileUrl}
+            onUploadComplete={(url) =>
+              setFormData({ ...formData, fileUrl: url })
+            }
+            accept=".pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip"
+            maxSizeMB={50}
           />
         ) : (
           <FileUploader
@@ -137,16 +260,53 @@ export function AssetForm({
           />
         )}
 
-        <FileUploader
-          label="Thumbnail"
-          folder="thumbnails"
-          currentUrl={formData.thumbnailUrl}
-          onUploadComplete={(url) =>
-            setFormData({ ...formData, thumbnailUrl: url })
-          }
-          accept="image/*"
-          maxSizeMB={5}
-        />
+        {/* Thumbnail upload with auto-generate option for campaigns and assets */}
+        <div className="space-y-2">
+          <FileUploader
+            label="Thumbnail"
+            folder="thumbnails"
+            currentUrl={formData.thumbnailUrl}
+            onUploadComplete={(url) =>
+              setFormData({ ...formData, thumbnailUrl: url })
+            }
+            accept="image/*"
+            maxSizeMB={5}
+          />
+          {formData.type === "CAMPAIGN" && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => generateThumbnail(formData.fileUrl)}
+                disabled={generatingThumbnail || !formData.fileUrl}
+              >
+                <Wand2 className="w-4 h-4 mr-1" />
+                {generatingThumbnail ? "Generating..." : "Auto-generate from email"}
+              </Button>
+              {thumbnailError && (
+                <span className="text-sm text-red-500">{thumbnailError}</span>
+              )}
+            </div>
+          )}
+          {formData.type === "ASSET" && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => generateThumbnail(formData.externalLink)}
+                disabled={generatingThumbnail || !formData.externalLink}
+              >
+                <Wand2 className="w-4 h-4 mr-1" />
+                {generatingThumbnail ? "Generating..." : "Auto-generate from link"}
+              </Button>
+              {thumbnailError && (
+                <span className="text-sm text-red-500">{thumbnailError}</span>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Languages */}
         <div>
@@ -206,6 +366,15 @@ export function AssetForm({
         {formData.type === "CAMPAIGN" && (
           <>
             <Input
+              label="Sent Date"
+              type="datetime-local"
+              value={formData.sentAt}
+              onChange={(e) =>
+                setFormData({ ...formData, sentAt: e.target.value })
+              }
+              helperText="When the campaign email was or will be sent"
+            />
+            <Input
               label="Campaign Goal"
               value={formData.campaignGoal}
               onChange={(e) =>
@@ -222,32 +391,6 @@ export function AssetForm({
               placeholder="https://..."
             />
           </>
-        )}
-
-        {/* Asset-specific fields */}
-        {formData.type === "ASSET" && (
-          <Input
-            label="External Link"
-            value={formData.externalLink}
-            onChange={(e) =>
-              setFormData({ ...formData, externalLink: e.target.value })
-            }
-            placeholder="https://figma.com/..."
-            helperText="Figma, demo environment, or other external link"
-          />
-        )}
-
-        {/* Video-specific fields */}
-        {formData.type === "VIDEO" && (
-          <Input
-            label="YouTube / Video URL"
-            value={formData.externalLink}
-            onChange={(e) =>
-              setFormData({ ...formData, externalLink: e.target.value })
-            }
-            placeholder="https://youtube.com/watch?v=... or https://youtu.be/..."
-            helperText="YouTube, Vimeo, or other video URL (if not uploading a file)"
-          />
         )}
 
         {/* Publish */}

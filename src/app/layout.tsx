@@ -7,6 +7,10 @@ import { Suspense } from 'react'
 export const metadata: Metadata = {
   title: 'Colect Partner Portal',
   description: 'Partner-only workspace for resellers and system integrators',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({

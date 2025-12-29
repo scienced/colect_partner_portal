@@ -33,6 +33,49 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// PATCH - Bulk reorder featured items
+export async function PATCH(request: NextRequest) {
+  try {
+    await requireAdmin()
+
+    const body = await request.json()
+    const ReorderSchema = z.array(z.object({
+      id: z.string(),
+      displayOrder: z.number(),
+    }))
+
+    const items = ReorderSchema.parse(body)
+
+    // Update all items in a transaction
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.featuredContent.update({
+          where: { id: item.id },
+          data: { displayOrder: item.displayOrder },
+        })
+      )
+    )
+
+    // Return updated list
+    const featuredContent = await prisma.featuredContent.findMany({
+      orderBy: { displayOrder: "asc" },
+      include: {
+        asset: true,
+        docsUpdate: true,
+        productUpdate: true,
+      },
+    })
+
+    return NextResponse.json(featuredContent)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Validation error", details: error.errors }, { status: 400 })
+    }
+    console.error("Error reordering featured content:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin()

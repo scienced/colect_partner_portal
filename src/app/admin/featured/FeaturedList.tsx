@@ -18,6 +18,23 @@ import {
   Trash2,
   GripVertical,
 } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 type FeaturedContentWithRelations = FeaturedContent & {
   asset: Asset | null
@@ -30,6 +47,85 @@ interface FeaturedListProps {
   assets: Asset[]
   docsUpdates: DocsUpdate[]
   productUpdates: ProductUpdate[]
+}
+
+interface SortableItemProps {
+  item: FeaturedContentWithRelations
+  index: number
+  getIcon: (entityType: string) => React.ReactNode
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function SortableItem({ item, index, getIcon, onEdit, onDelete }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+  }
+
+  const isActive =
+    new Date(item.startDate) <= new Date() &&
+    (!item.endDate || new Date(item.endDate) >= new Date())
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card padding="md" className={isDragging ? "shadow-lg ring-2 ring-primary/20" : ""}>
+        <div className="flex items-center gap-4">
+          <div
+            {...attributes}
+            {...listeners}
+            className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none"
+          >
+            <GripVertical className="w-5 h-5" />
+          </div>
+          <div className="w-8 h-8 bg-yellow-50 rounded-lg flex items-center justify-center text-yellow-600">
+            {getIcon(item.entityType)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">#{index + 1}</span>
+              <h3 className="font-medium text-gray-900">{item.title}</h3>
+            </div>
+            {item.description && (
+              <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <StatusBadge status="neutral">
+              {item.entityType.replace("_", " ")}
+            </StatusBadge>
+            {isActive ? (
+              <StatusBadge status="success">Active</StatusBadge>
+            ) : (
+              <StatusBadge status="warning">Scheduled</StatusBadge>
+            )}
+            <IconButton
+              icon={<Edit className="w-4 h-4" />}
+              variant="primary"
+              size="sm"
+              onClick={onEdit}
+            />
+            <IconButton
+              icon={<Trash2 className="w-4 h-4" />}
+              variant="danger"
+              size="sm"
+              onClick={onDelete}
+            />
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
 }
 
 export function FeaturedList({
@@ -45,6 +141,52 @@ export function FeaturedList({
   const [deletingItem, setDeletingItem] = useState<FeaturedContentWithRelations | null>(null)
   const [loading, setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = featured.findIndex((item) => item.id === active.id)
+      const newIndex = featured.findIndex((item) => item.id === over.id)
+
+      const newFeatured = arrayMove(featured, oldIndex, newIndex)
+      setFeatured(newFeatured)
+
+      // Save new order to backend
+      setIsReordering(true)
+      try {
+        const reorderData = newFeatured.map((item, index) => ({
+          id: item.id,
+          displayOrder: index,
+        }))
+
+        const response = await fetch("/api/featured", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reorderData),
+        })
+
+        if (response.ok) {
+          const updatedFeatured = await response.json()
+          setFeatured(updatedFeatured)
+        }
+      } catch (error) {
+        console.error("Failed to save order:", error)
+        // Revert on error
+        setFeatured(initialFeatured)
+      } finally {
+        setIsReordering(false)
+      }
+    }
+  }
 
   const [formData, setFormData] = useState({
     title: "",
@@ -259,57 +401,29 @@ export function FeaturedList({
 
       {/* Featured List */}
       {featured.length > 0 ? (
-        <div className="space-y-4">
-          {featured.map((item, index) => {
-            const isActive =
-              new Date(item.startDate) <= new Date() &&
-              (!item.endDate || new Date(item.endDate) >= new Date())
-
-            return (
-              <Card key={item.id} padding="md">
-                <div className="flex items-center gap-4">
-                  <div className="text-gray-300 cursor-move">
-                    <GripVertical className="w-5 h-5" />
-                  </div>
-                  <div className="w-8 h-8 bg-yellow-50 rounded-lg flex items-center justify-center text-yellow-600">
-                    {getIcon(item.entityType)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">#{index + 1}</span>
-                      <h3 className="font-medium text-gray-900">{item.title}</h3>
-                    </div>
-                    {item.description && (
-                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <StatusBadge status="neutral">
-                      {item.entityType.replace("_", " ")}
-                    </StatusBadge>
-                    {isActive ? (
-                      <StatusBadge status="success">Active</StatusBadge>
-                    ) : (
-                      <StatusBadge status="warning">Scheduled</StatusBadge>
-                    )}
-                    <IconButton
-                      icon={<Edit className="w-4 h-4" />}
-                      variant="primary"
-                      size="sm"
-                      onClick={() => openEditForm(item)}
-                    />
-                    <IconButton
-                      icon={<Trash2 className="w-4 h-4" />}
-                      variant="danger"
-                      size="sm"
-                      onClick={() => setDeletingItem(item)}
-                    />
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={featured.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={`space-y-4 ${isReordering ? "opacity-50 pointer-events-none" : ""}`}>
+              {featured.map((item, index) => (
+                <SortableItem
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  getIcon={getIcon}
+                  onEdit={() => openEditForm(item)}
+                  onDelete={() => setDeletingItem(item)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <Card padding="lg" className="text-center">
           <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
