@@ -140,6 +140,7 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
     setSearchResults([])
 
     // For asset results, open the drawer instead of navigating
+    // Note: onAssetClick (handleInfoClick) already updates the URL
     if (result.category === "asset" && onAssetClick) {
       onAssetClick({
         id: result.id,

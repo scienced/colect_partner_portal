@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/supertokens/session"
 import { trackSearchQuery } from "@/lib/analytics"
+import { getPresignedUrlIfNeeded } from "@/lib/s3"
+
+// Helper to generate YouTube thumbnail from URL
+function getYouTubeThumbnail(url: string | null): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) {
+      return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
+    }
+  }
+  return null
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -114,9 +130,14 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Format results with categories
-    const results = [
-      ...assets.map((a) => ({
+    // Format results with categories (presign S3 URLs)
+    const assetResults = await Promise.all(assets.map(async (a) => {
+      // Generate thumbnail: presigned S3 URL or YouTube thumbnail for videos
+      const thumbnailUrl = a.thumbnailUrl
+        ? await getPresignedUrlIfNeeded(a.thumbnailUrl)
+        : (a.type === "VIDEO" ? getYouTubeThumbnail(a.externalLink) : null)
+
+      return {
         id: a.id,
         title: a.title,
         subtitle: a.description?.slice(0, 60) || a.type,
@@ -125,8 +146,8 @@ export async function GET(request: NextRequest) {
         href: a.type === "DECK" ? "/decks" : a.type === "CAMPAIGN" ? "/campaigns" : a.type === "VIDEO" ? "/videos" : "/assets",
         // Full asset data for drawer
         description: a.description,
-        thumbnailUrl: a.thumbnailUrl,
-        fileUrl: a.fileUrl,
+        thumbnailUrl,
+        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
         externalLink: a.externalLink,
         language: a.language,
         persona: a.persona,
@@ -134,7 +155,11 @@ export async function GET(request: NextRequest) {
         sentAt: a.sentAt?.toISOString() || null,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
-      })),
+      }
+    }))
+
+    const results = [
+      ...assetResults,
       ...docsUpdates.map((d) => ({
         id: d.id,
         title: d.title,
