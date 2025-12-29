@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { FolderOpen, ExternalLink, Download } from "lucide-react"
@@ -28,11 +29,13 @@ export default function AssetsPage() {
             <Card key={asset.id} hover padding="md">
               <div className="flex flex-col h-full">
                 {asset.thumbnailUrl ? (
-                  <div className="aspect-video bg-gray-100 rounded-md mb-4 overflow-hidden">
-                    <img
+                  <div className="aspect-video bg-gray-100 rounded-md mb-4 overflow-hidden relative">
+                    <Image
                       src={asset.thumbnailUrl}
                       alt={asset.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
                     />
                   </div>
                 ) : (

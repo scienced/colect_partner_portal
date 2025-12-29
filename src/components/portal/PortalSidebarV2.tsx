@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useTransition } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -196,10 +197,12 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/colect-logo.png"
               alt="Colect"
-              className="w-10 h-10 rounded-xl"
+              width={40}
+              height={40}
+              className="rounded-xl"
             />
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Colect</h2>

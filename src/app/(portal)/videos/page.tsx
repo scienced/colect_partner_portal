@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
@@ -56,10 +57,12 @@ export default function VideosPage() {
                 >
                   <div className="relative aspect-video bg-gray-900">
                     {thumbnailUrl ? (
-                      <img
+                      <Image
                         src={thumbnailUrl}
                         alt={video.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-800">

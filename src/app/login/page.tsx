@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { createCode } from "supertokens-web-js/recipe/passwordless"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
@@ -66,9 +67,21 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">Colect</h1>
-          <p className="text-gray-500 mt-1">Partner Portal</p>
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <Image
+              src="/colect-logo.png"
+              alt="Colect"
+              width={48}
+              height={48}
+              className="rounded-xl"
+              priority
+            />
+            <h1 className="text-2xl font-bold text-gray-900">Colect</h1>
+          </div>
+          <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-primary/10 text-primary">
+            Partner Portal
+          </span>
         </div>
 
         <Card padding="lg" className="shadow-lg">

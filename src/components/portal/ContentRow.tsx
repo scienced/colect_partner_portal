@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Info, File } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -264,10 +265,12 @@ function ContentCard({
         {/* Thumbnail */}
         <div className={cn("relative overflow-hidden rounded-t-xl", cardHeight)}>
           {item.thumbnailUrl ? (
-            <img
+            <Image
               src={item.thumbnailUrl}
               alt={item.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 288px"
+              className="object-cover"
             />
           ) : (
             <div className={cn(

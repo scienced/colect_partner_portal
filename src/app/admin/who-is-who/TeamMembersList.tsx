@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { TeamMember } from "@prisma/client"
 import { Card } from "@/components/ui/Card"
@@ -222,12 +223,14 @@ export function TeamMembersList({ initialMembers }: TeamMembersListProps) {
             {deptMembers.map((member) => (
               <Card key={member.id} padding="md">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                     {member.photoUrl ? (
-                      <img
+                      <Image
                         src={member.photoUrl}
                         alt={member.name}
-                        className="w-12 h-12 rounded-full object-cover"
+                        fill
+                        sizes="48px"
+                        className="object-cover"
                       />
                     ) : (
                       <User className="w-6 h-6 text-gray-400" />

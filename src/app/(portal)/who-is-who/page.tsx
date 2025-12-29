@@ -1,3 +1,4 @@
+import Image from "next/image"
 import { prisma } from "@/lib/prisma"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
@@ -33,12 +34,14 @@ export default async function WhoIsWhoPage() {
               {members.map((member) => (
                 <Card key={member.id} padding="lg">
                   <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                       {member.photoUrl ? (
-                        <img
+                        <Image
                           src={member.photoUrl}
                           alt={member.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
                         />
                       ) : (
                         <User className="w-8 h-8 text-gray-400" />

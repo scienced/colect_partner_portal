@@ -6,6 +6,26 @@ import {
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
+// In-memory cache for presigned URLs
+// URLs are valid for 1 hour, so cache for 45 minutes to be safe
+const PRESIGNED_URL_CACHE_TTL = 45 * 60 * 1000 // 45 minutes in ms
+const presignedUrlCache = new Map<string, { url: string; expiresAt: number }>()
+
+// Clean up expired entries periodically
+function cleanupCache() {
+  const now = Date.now()
+  presignedUrlCache.forEach((value, key) => {
+    if (value.expiresAt < now) {
+      presignedUrlCache.delete(key)
+    }
+  })
+}
+
+// Run cleanup every 5 minutes
+if (typeof setInterval !== "undefined") {
+  setInterval(cleanupCache, 5 * 60 * 1000)
+}
+
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "eu-west-1",
   credentials: {
@@ -54,14 +74,29 @@ export async function getPresignedUploadUrl(
 
 /**
  * Generate a presigned URL for downloading/viewing a file
+ * Uses in-memory caching to avoid regenerating URLs on every request
  */
 export async function getPresignedDownloadUrl(key: string): Promise<string> {
+  // Check cache first
+  const cached = presignedUrlCache.get(key)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.url
+  }
+
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
   })
 
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 })
+  const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
+
+  // Cache the URL
+  presignedUrlCache.set(key, {
+    url,
+    expiresAt: Date.now() + PRESIGNED_URL_CACHE_TTL,
+  })
+
+  return url
 }
 
 /**

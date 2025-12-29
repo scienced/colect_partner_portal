@@ -3,6 +3,21 @@ import { getServerSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrlIfNeeded } from "@/lib/s3"
 
+// Helper to generate YouTube thumbnail from URL
+function getYouTubeThumbnail(url: string | null): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) {
+      return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
+    }
+  }
+  return null
+}
+
 export async function GET() {
   try {
     const session = await getServerSession()
@@ -89,7 +104,7 @@ export async function GET() {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 10)
 
-    // Generate presigned URLs for all assets
+    // Generate presigned URLs for all assets (and YouTube thumbnails for videos)
     const [decks, videos, campaigns, assets, recent] = await Promise.all([
       Promise.all(latestDecks.map(async (a) => ({
         ...a,
@@ -98,7 +113,9 @@ export async function GET() {
       }))),
       Promise.all(latestVideos.map(async (a) => ({
         ...a,
-        thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
+        thumbnailUrl: a.thumbnailUrl
+          ? await getPresignedUrlIfNeeded(a.thumbnailUrl)
+          : getYouTubeThumbnail(a.externalLink),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
       Promise.all(latestCampaigns.map(async (a) => ({
@@ -113,7 +130,11 @@ export async function GET() {
       }))),
       Promise.all(recentlyUpdated.map(async (item) => ({
         ...item,
-        thumbnailUrl: item.thumbnailUrl ? await getPresignedUrlIfNeeded(item.thumbnailUrl) : null,
+        thumbnailUrl: item.thumbnailUrl
+          ? await getPresignedUrlIfNeeded(item.thumbnailUrl)
+          : (item._type === "asset" && (item as any).type === "VIDEO"
+              ? getYouTubeThumbnail((item as any).externalLink)
+              : null),
         fileUrl: item.fileUrl ? await getPresignedUrlIfNeeded(item.fileUrl) : null,
       }))),
     ])
@@ -124,11 +145,16 @@ export async function GET() {
       const docsUpdate = item.docsUpdate
 
       if (asset) {
+        // For videos without a thumbnail, generate YouTube thumbnail from external link
+        const thumbnailUrl = asset.thumbnailUrl
+          ? await getPresignedUrlIfNeeded(asset.thumbnailUrl)
+          : (asset.type === "VIDEO" ? getYouTubeThumbnail(asset.externalLink) : null)
+
         return {
           id: item.id,
           title: item.title || asset.title,
           description: item.description || asset.description,
-          thumbnailUrl: await getPresignedUrlIfNeeded(asset.thumbnailUrl),
+          thumbnailUrl,
           href: await getAssetHref(asset),
           external: shouldOpenExternal(asset),
           category: asset.type.toLowerCase(),
@@ -138,7 +164,7 @@ export async function GET() {
             type: asset.type,
             title: asset.title,
             description: asset.description,
-            thumbnailUrl: await getPresignedUrlIfNeeded(asset.thumbnailUrl),
+            thumbnailUrl,
             fileUrl: await getPresignedUrlIfNeeded(asset.fileUrl),
             externalLink: asset.externalLink,
             language: asset.language,

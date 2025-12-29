@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ContentRow, ContentItem } from "@/components/portal/ContentRow"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
@@ -36,11 +37,14 @@ export default function HomePage() {
   // Helper to transform raw data to ContentItem with all fields
   const transformToContentItem = useCallback((item: any): ContentItem => {
     const category = item.type?.toLowerCase() || "asset"
+    // Generate YouTube thumbnail for videos if no thumbnail is set
+    const thumbnailUrl = item.thumbnailUrl ||
+      (item.type === "VIDEO" ? getYouTubeThumbnail(item.externalLink) : undefined)
     return {
       id: item.id,
       title: item.title,
       description: item.description || item.summary,
-      thumbnailUrl: item.thumbnailUrl,
+      thumbnailUrl,
       type: item.type,
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
@@ -216,11 +220,14 @@ export default function HomePage() {
 
   const recentItems: ContentItem[] = recentlyUpdated.map((item: any) => {
     const isNew = Math.abs(new Date(item.createdAt).getTime() - new Date(item.updatedAt).getTime()) < 60000
+    // Generate YouTube thumbnail for videos if no thumbnail is set
+    const thumbnailUrl = item.thumbnailUrl ||
+      (item.type === "VIDEO" ? getYouTubeThumbnail(item.externalLink) : undefined)
     return {
       id: item.id,
       title: item.title,
       description: item.description,
-      thumbnailUrl: item.thumbnailUrl,
+      thumbnailUrl,
       type: item.type,
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
@@ -260,12 +267,14 @@ export default function HomePage() {
                   className="block"
                 >
                   <div className="flex items-start gap-4">
-                    <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${categoryColors[item.category] || "from-primary to-primary/70"} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+                    <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${categoryColors[item.category] || "from-primary to-primary/70"} flex items-center justify-center flex-shrink-0 overflow-hidden relative`}>
                       {item.thumbnailUrl ? (
-                        <img
+                        <Image
                           src={item.thumbnailUrl}
                           alt=""
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
                         />
                       ) : (
                         categoryIcons[item.category] || (
@@ -382,7 +391,10 @@ export default function HomePage() {
           description: selectedAsset.description,
           type: selectedAsset.type || selectedAsset.category?.toUpperCase() || "ASSET",
           category: selectedAsset.category,
-          thumbnailUrl: selectedAsset.thumbnailUrl,
+          thumbnailUrl: selectedAsset.thumbnailUrl ||
+            ((selectedAsset.type === "VIDEO" || selectedAsset.category === "video")
+              ? getYouTubeThumbnail(selectedAsset.externalLink || null)
+              : undefined),
           fileUrl: selectedAsset.fileUrl,
           externalLink: selectedAsset.externalLink,
           language: selectedAsset.language,

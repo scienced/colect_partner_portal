@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { format } from "date-fns"
 import { Drawer } from "@/components/ui/Drawer"
 import { Button } from "@/components/ui/Button"
@@ -132,11 +133,14 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
         {/* Hero Section with Thumbnail */}
         <div className="relative">
           {asset.thumbnailUrl ? (
-            <div className="aspect-video w-full bg-gray-100">
-              <img
+            <div className="aspect-video w-full bg-gray-100 relative">
+              <Image
                 src={asset.thumbnailUrl}
                 alt={asset.title}
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 500px"
+                className="object-cover"
+                priority
               />
             </div>
           ) : (
