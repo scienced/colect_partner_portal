@@ -14,6 +14,18 @@ interface TrackEventOptions {
 }
 
 /**
+ * Send analytics event using sendBeacon (for click/download tracking)
+ * sendBeacon guarantees the request is sent even when navigating away
+ */
+function sendBeaconEvent(options: TrackEventOptions): boolean {
+  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    const blob = new Blob([JSON.stringify(options)], { type: "application/json" })
+    return navigator.sendBeacon("/api/analytics/events", blob)
+  }
+  return false
+}
+
+/**
  * Hook for tracking analytics events
  */
 export function useAnalytics() {
@@ -50,25 +62,45 @@ export function useAnalytics() {
   )
 
   const trackAssetClick = useCallback(
-    async (assetId: string, assetTitle: string, assetType: string) => {
-      await trackEvent({
+    (assetId: string, assetTitle: string, assetType: string) => {
+      // Use sendBeacon to ensure tracking completes even when navigating away
+      const sent = sendBeaconEvent({
         type: "ASSET_CLICK",
         assetId,
         assetTitle,
         assetType,
       })
+      // Fallback to fetch if sendBeacon fails
+      if (!sent) {
+        trackEvent({
+          type: "ASSET_CLICK",
+          assetId,
+          assetTitle,
+          assetType,
+        })
+      }
     },
     [trackEvent]
   )
 
   const trackAssetDownload = useCallback(
-    async (assetId: string, assetTitle: string, assetType: string) => {
-      await trackEvent({
+    (assetId: string, assetTitle: string, assetType: string) => {
+      // Use sendBeacon to ensure tracking completes even when navigating away
+      const sent = sendBeaconEvent({
         type: "ASSET_DOWNLOAD",
         assetId,
         assetTitle,
         assetType,
       })
+      // Fallback to fetch if sendBeacon fails
+      if (!sent) {
+        trackEvent({
+          type: "ASSET_DOWNLOAD",
+          assetId,
+          assetTitle,
+          assetType,
+        })
+      }
     },
     [trackEvent]
   )

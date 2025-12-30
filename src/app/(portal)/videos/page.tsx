@@ -1,11 +1,32 @@
 "use client"
 
+import { useState, useCallback, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
-import { Play, ExternalLink } from "lucide-react"
+import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
+import { Play, ExternalLink, Info } from "lucide-react"
 import { useVideos } from "@/lib/swr"
+import { useAnalytics } from "@/hooks/useAnalytics"
+
+interface AssetInfo {
+  id: string
+  title: string
+  description?: string | null
+  type: string
+  category?: string
+  thumbnailUrl?: string | null
+  fileUrl?: string | null
+  externalLink?: string | null
+  language?: string[]
+  persona?: string[]
+  campaignGoal?: string | null
+  sentAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -26,6 +47,62 @@ function getYouTubeThumbnail(videoId: string): string {
 export default function VideosPage() {
   const { data, isLoading, error } = useVideos()
   const videos = data?.assets || []
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { trackAssetClick } = useAnalytics()
+
+  const [selectedAsset, setSelectedAsset] = useState<AssetInfo | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const handleInfoClick = useCallback((video: any) => {
+    const youtubeId = video.externalLink ? getYouTubeId(video.externalLink) : null
+    const thumbnailUrl = video.thumbnailUrl || (youtubeId ? getYouTubeThumbnail(youtubeId) : null)
+
+    const asset: AssetInfo = {
+      id: video.id,
+      title: video.title,
+      description: video.description,
+      type: "VIDEO",
+      category: "video",
+      thumbnailUrl: thumbnailUrl,
+      fileUrl: video.fileUrl,
+      externalLink: video.externalLink,
+      language: video.language,
+      persona: video.persona,
+      createdAt: video.createdAt,
+      updatedAt: video.updatedAt,
+    }
+    setSelectedAsset(asset)
+    setDrawerOpen(true)
+    // Update URL for deep linking
+    const url = new URL(window.location.href)
+    url.searchParams.set("asset", video.id)
+    router.replace(url.pathname + url.search, { scroll: false })
+  }, [router])
+
+  const handleDrawerClose = useCallback(() => {
+    setDrawerOpen(false)
+    setSelectedAsset(null)
+    // Remove asset param from URL
+    const url = new URL(window.location.href)
+    url.searchParams.delete("asset")
+    router.replace(url.pathname + url.search, { scroll: false })
+  }, [router])
+
+  // Handle deep linking via URL params
+  useEffect(() => {
+    const assetId = searchParams.get("asset")
+    if (assetId && videos.length > 0) {
+      const found = videos.find((video: any) => video.id === assetId)
+      if (found) {
+        handleInfoClick(found)
+      }
+    }
+  }, [searchParams, videos, handleInfoClick])
+
+  const handleVideoClick = (video: any) => {
+    trackAssetClick(video.id, video.title, "VIDEO")
+  }
 
   return (
     <div className="space-y-6">
@@ -48,12 +125,13 @@ export default function VideosPage() {
             const videoUrl = video.externalLink || video.fileUrl
 
             return (
-              <Card key={video.id} hover padding="none" className="overflow-hidden">
+              <Card key={video.id} hover padding="none" className="overflow-hidden group relative">
                 <a
                   href={videoUrl || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block"
+                  onClick={() => handleVideoClick(video)}
                 >
                   <div className="relative aspect-video bg-gray-900">
                     {thumbnailUrl ? (
@@ -75,7 +153,7 @@ export default function VideosPage() {
                       </div>
                     </div>
                     {video.externalLink && (
-                      <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                      <div className="absolute top-2 right-10 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
                         <ExternalLink className="w-3 h-3" />
                         {youtubeId ? "YouTube" : "External"}
                       </div>
@@ -99,6 +177,14 @@ export default function VideosPage() {
                     )}
                   </div>
                 </a>
+                {/* Info Button */}
+                <button
+                  onClick={() => handleInfoClick(video)}
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 text-gray-400 hover:text-primary hover:bg-white transition-colors opacity-0 group-hover:opacity-100 shadow-sm z-10"
+                  title="View details"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
               </Card>
             )
           })}
@@ -109,6 +195,13 @@ export default function VideosPage() {
           <p className="text-gray-500">No videos available yet</p>
         </Card>
       )}
+
+      {/* Asset Info Drawer */}
+      <AssetInfoDrawer
+        asset={selectedAsset}
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+      />
     </div>
   )
 }

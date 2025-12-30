@@ -27,6 +27,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'img.youtube.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'media.licdn.com',
+      },
     ],
     // Modern image formats for better compression
     formats: ['image/avif', 'image/webp'],

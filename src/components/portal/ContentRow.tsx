@@ -183,15 +183,21 @@ function ContentCard({
   variant: string
   onInfoClick?: (item: ContentItem) => void
 }) {
-  const { trackAssetClick } = useAnalytics()
+  const { trackAssetClick, trackAssetDownload } = useAnalytics()
   const category = item.category || "deck"
   const gradientColor = categoryColors[category] || categoryColors.deck
   const icon = categoryIcons[category] || categoryIcons.deck
 
   const handleCardClick = () => {
-    // Track asset click when user navigates to the asset
     const assetType = item.type || category.toUpperCase()
-    trackAssetClick(item.id, item.title, assetType)
+
+    // Track as download if clicking opens a file (PDF, document)
+    // Track as click if opening an external link (YouTube, Google Doc, etc.)
+    if (item.fileUrl && item.href === item.fileUrl) {
+      trackAssetDownload(item.id, item.title, assetType)
+    } else {
+      trackAssetClick(item.id, item.title, assetType)
+    }
   }
 
   if (variant === "docs") {
