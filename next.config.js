@@ -79,12 +79,12 @@ const nextConfig = {
         ],
       },
       {
-        // Cache API responses for 60 seconds
+        // Authenticated API routes - no caching (responses vary per user/session)
         source: '/api/portal/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, s-maxage=60, stale-while-revalidate=300',
+            value: 'private, no-cache, no-store, must-revalidate',
           },
         ],
       },
