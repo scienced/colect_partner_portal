@@ -5,14 +5,20 @@ import { usePathname, useRouter } from "next/navigation"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
 import Session from "supertokens-web-js/recipe/session"
 
+// Routes that don't require authentication
+const publicRoutes = ["/login", "/login/verify"]
+
 export function SuperTokensProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [sessionState, setSessionState] = useState<"loading" | "valid" | "invalid">("loading")
+  const [sessionState, setSessionState] = useState<"loading" | "valid" | "invalid" | "public">("loading")
   const pathname = usePathname()
   const router = useRouter()
+
+  // Check if current route is public
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
   // Initialize SuperTokens and check session on mount
   useEffect(() => {
@@ -21,6 +27,12 @@ export function SuperTokensProvider({
     async function initAndCheckSession() {
       try {
         initSupertokensFrontend()
+
+        // Skip session check for public routes
+        if (isPublicRoute) {
+          setSessionState("public")
+          return
+        }
 
         // This will automatically refresh the session if needed
         const exists = await Session.doesSessionExist()
@@ -48,11 +60,11 @@ export function SuperTokensProvider({
     return () => {
       cancelled = true
     }
-  }, [router])
+  }, [router, isPublicRoute])
 
-  // Re-check session on path changes (but not on initial mount)
+  // Re-check session on path changes (but not on initial mount or public routes)
   useEffect(() => {
-    if (sessionState !== "valid") return
+    if (sessionState !== "valid" || isPublicRoute) return
 
     async function recheckSession() {
       try {
@@ -67,7 +79,12 @@ export function SuperTokensProvider({
     }
 
     recheckSession()
-  }, [pathname, sessionState, router])
+  }, [pathname, sessionState, router, isPublicRoute])
+
+  // For public routes, just render children immediately
+  if (isPublicRoute || sessionState === "public") {
+    return <>{children}</>
+  }
 
   // Show loading spinner while checking session
   if (sessionState === "loading") {
