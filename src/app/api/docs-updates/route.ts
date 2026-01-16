@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
-    const limit = parseInt(searchParams.get("limit") || "50")
+    // Enforce pagination limits to prevent DoS
+    const MAX_LIMIT = 100
+    const rawLimit = parseInt(searchParams.get("limit") || "50")
+    const limit = Math.min(Math.max(rawLimit, 1), MAX_LIMIT)
 
     const where: Record<string, unknown> = {}
     if (category) where.category = category

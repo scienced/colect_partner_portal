@@ -9,9 +9,45 @@ import sharp from "sharp"
 const THUMBNAIL_WIDTH = 400
 const THUMBNAIL_QUALITY = 80
 
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || ""
+const AWS_REGION = process.env.AWS_REGION || "eu-west-1"
+
 const requestSchema = z.object({
   htmlUrl: z.string().url(),
 })
+
+/**
+ * Validate that a URL belongs to our S3 bucket to prevent SSRF attacks.
+ * Only URLs from our own S3 bucket are allowed.
+ */
+function isValidS3UrlFromOurBucket(url: string): boolean {
+  if (!BUCKET_NAME) return false
+
+  try {
+    const urlObj = new URL(url)
+
+    // Must be HTTPS
+    if (urlObj.protocol !== "https:") return false
+
+    // Allowed S3 hostnames for our bucket
+    const allowedHostnames = [
+      `${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com`,
+      `${BUCKET_NAME}.s3.amazonaws.com`,
+    ]
+
+    // For path-style URLs (s3.region.amazonaws.com/bucket)
+    if (urlObj.hostname === `s3.${AWS_REGION}.amazonaws.com` ||
+        urlObj.hostname === "s3.amazonaws.com") {
+      // Verify bucket name is the first path segment
+      const segments = urlObj.pathname.split("/").filter(Boolean)
+      return segments.length >= 1 && segments[0] === BUCKET_NAME
+    }
+
+    return allowedHostnames.includes(urlObj.hostname)
+  } catch {
+    return false
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,14 +60,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { htmlUrl } = requestSchema.parse(body)
 
-    // Get a presigned URL if it's an S3 URL (so captureapi.net can access it)
-    let screenshotUrl = htmlUrl
-    if (isS3Url(htmlUrl)) {
-      const key = getKeyFromUrl(htmlUrl)
-      if (key) {
-        screenshotUrl = await getPresignedDownloadUrl(key)
-      }
+    // SECURITY: Only allow S3 URLs from our bucket to prevent SSRF attacks
+    if (!isS3Url(htmlUrl) || !isValidS3UrlFromOurBucket(htmlUrl)) {
+      return NextResponse.json(
+        { error: "Only S3 URLs from the configured bucket are allowed" },
+        { status: 400 }
+      )
     }
+
+    // Get a presigned URL so captureapi.net can access the file
+    const key = getKeyFromUrl(htmlUrl)
+    if (!key) {
+      return NextResponse.json({ error: "Invalid S3 URL format" }, { status: 400 })
+    }
+    const screenshotUrl = await getPresignedDownloadUrl(key)
 
     // Capture screenshot using captureapi.net with the presigned URL
     const screenshotResult = await captureScreenshot({

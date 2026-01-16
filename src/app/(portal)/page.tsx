@@ -8,6 +8,7 @@ import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { formatDistanceToNow } from "date-fns"
 import { Sparkles, FileText, Play, Mail, ExternalLink, BookOpen, Star, Info } from "lucide-react"
 import { useHomepageData } from "@/lib/swr"
+import type { Asset, DocsUpdate, FeaturedItem } from "@/types"
 
 // Category colors for featured items
 const categoryColors: Record<string, string> = {
@@ -34,8 +35,30 @@ export default function HomePage() {
   const [selectedAsset, setSelectedAsset] = useState<ContentItem | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  // Input type for transformToContentItem - can be Asset, DocsUpdate, or merged item
+  type TransformableItem = {
+    id: string
+    title: string
+    type?: string
+    description?: string | null
+    summary?: string
+    thumbnailUrl?: string | null
+    fileUrl?: string | null
+    externalLink?: string | null
+    deepLink?: string
+    campaignLink?: string | null
+    language?: string[]
+    persona?: string[]
+    campaignGoal?: string | null
+    sentAt?: string | null
+    createdAt?: string
+    updatedAt?: string
+    publishedAt?: string | null
+    _type?: "asset" | "docs"
+  }
+
   // Helper to transform raw data to ContentItem with all fields
-  const transformToContentItem = useCallback((item: any): ContentItem => {
+  const transformToContentItem = useCallback((item: TransformableItem): ContentItem => {
     const category = item.type?.toLowerCase() || "asset"
     // Generate YouTube thumbnail for videos if no thumbnail is set
     const thumbnailUrl = item.thumbnailUrl ||
@@ -56,7 +79,7 @@ export default function HomePage() {
       sentAt: item.sentAt,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
-      category: category as any,
+      category: category as ContentItem["category"],
     }
   }, [])
 
@@ -83,19 +106,19 @@ export default function HomePage() {
     const assetId = searchParams.get("asset")
     if (assetId && data) {
       // Find the asset across all collections
-      const allItems = [
+      const allItems: TransformableItem[] = [
         ...(data.decks || []),
         ...(data.videos || []),
         ...(data.campaigns || []),
         ...(data.assets || []),
-        ...(data.docsUpdates || []).map((d: any) => ({
+        ...(data.docsUpdates || []).map((d) => ({
           ...d,
-          type: "DOCS",
+          type: "DOCS" as const,
           externalLink: d.deepLink,
         })),
         ...(data.recentlyUpdated || []),
       ]
-      const found = allItems.find((item: any) => item.id === assetId)
+      const found = allItems.find((item) => item.id === assetId)
       if (found) {
         handleInfoClick(transformToContentItem(found))
       }
@@ -125,7 +148,7 @@ export default function HomePage() {
   } = data || {}
 
   // Transform data for content rows
-  const deckItems: ContentItem[] = decks.map((deck: any) => ({
+  const deckItems: ContentItem[] = decks.map((deck) => ({
     id: deck.id,
     title: deck.title,
     description: deck.description,
@@ -142,7 +165,7 @@ export default function HomePage() {
     updatedAt: deck.updatedAt,
   }))
 
-  const videoItems: ContentItem[] = videos.map((video: any) => ({
+  const videoItems: ContentItem[] = videos.map((video) => ({
     id: video.id,
     title: video.title,
     description: video.description,
@@ -159,7 +182,7 @@ export default function HomePage() {
     updatedAt: video.updatedAt,
   }))
 
-  const campaignItems: ContentItem[] = campaigns.map((campaign: any) => ({
+  const campaignItems: ContentItem[] = campaigns.map((campaign) => ({
     id: campaign.id,
     title: campaign.title,
     description: campaign.description,
@@ -187,7 +210,7 @@ export default function HomePage() {
     updatedAt: campaign.updatedAt,
   }))
 
-  const assetItems: ContentItem[] = assets.map((asset: any) => ({
+  const assetItems: ContentItem[] = assets.map((asset) => ({
     id: asset.id,
     title: asset.title,
     description: asset.description,
@@ -204,7 +227,7 @@ export default function HomePage() {
     updatedAt: asset.updatedAt,
   }))
 
-  const docsItems: ContentItem[] = docsUpdates.map((doc: any) => ({
+  const docsItems: ContentItem[] = docsUpdates.map((doc) => ({
     id: doc.id,
     title: doc.title,
     description: doc.summary,
@@ -218,7 +241,7 @@ export default function HomePage() {
     updatedAt: doc.updatedAt,
   }))
 
-  const recentItems: ContentItem[] = recentlyUpdated.map((item: any) => {
+  const recentItems: ContentItem[] = recentlyUpdated.map((item) => {
     const isNew = Math.abs(new Date(item.createdAt).getTime() - new Date(item.updatedAt).getTime()) < 60000
     // Generate YouTube thumbnail for videos if no thumbnail is set
     const thumbnailUrl = item.thumbnailUrl ||
@@ -234,7 +257,7 @@ export default function HomePage() {
       fileUrl: item.fileUrl,
       externalLink: item.externalLink,
       meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
-      category: item.type.toLowerCase() as any,
+      category: item.type?.toLowerCase() as ContentItem["category"],
       status: isNew ? "new" as const : "updated" as const,
       language: item.language,
       persona: item.persona,
@@ -255,7 +278,7 @@ export default function HomePage() {
             <h2 className="text-lg font-semibold text-gray-900">Featured This Month</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featured.slice(0, 3).map((item: any) => (
+            {featured.slice(0, 3).map((item) => (
               <div
                 key={item.id}
                 className="group relative bg-white hover:bg-gray-50 rounded-xl p-4 transition-all shadow-sm hover:shadow-md border border-gray-100"
@@ -312,7 +335,9 @@ export default function HomePage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleInfoClick(transformToContentItem(item.asset))
+                      if (item.asset) {
+                        handleInfoClick(transformToContentItem(item.asset))
+                      }
                     }}
                     className="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100"
                     title="View details"
@@ -412,7 +437,7 @@ export default function HomePage() {
 }
 
 // Helper functions
-function getYouTubeThumbnail(url: string | null): string | undefined {
+function getYouTubeThumbnail(url: string | null | undefined): string | undefined {
   if (!url) return undefined
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
@@ -426,7 +451,7 @@ function getYouTubeThumbnail(url: string | null): string | undefined {
   return undefined
 }
 
-function getAssetHref(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): string {
+function getAssetHref(asset: { type?: string; fileUrl?: string | null; externalLink?: string | null; campaignLink?: string | null }): string {
   switch (asset.type) {
     case "DECK":
       return asset.fileUrl || "/decks"
@@ -443,7 +468,7 @@ function getAssetHref(asset: { type: string; fileUrl: string | null; externalLin
   }
 }
 
-function shouldOpenExternal(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): boolean {
+function shouldOpenExternal(asset: { type?: string; fileUrl?: string | null; externalLink?: string | null; campaignLink?: string | null }): boolean {
   switch (asset.type) {
     case "DECK":
       return !!asset.fileUrl

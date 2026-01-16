@@ -34,8 +34,12 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type")
     const region = searchParams.get("region")
     const language = searchParams.get("language")
-    const limit = parseInt(searchParams.get("limit") || "50")
-    const offset = parseInt(searchParams.get("offset") || "0")
+    // Enforce pagination limits to prevent DoS
+    const MAX_LIMIT = 100
+    const rawLimit = parseInt(searchParams.get("limit") || "50")
+    const rawOffset = parseInt(searchParams.get("offset") || "0")
+    const limit = Math.min(Math.max(rawLimit, 1), MAX_LIMIT)
+    const offset = Math.max(rawOffset, 0)
 
     const where: Record<string, unknown> = {}
 

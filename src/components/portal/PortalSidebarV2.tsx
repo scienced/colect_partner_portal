@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Session from "supertokens-web-js/recipe/session"
+import type { SearchResult, AssetDrawerData } from "@/types"
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
@@ -32,23 +33,6 @@ const navItems = [
   { href: "/who-is-who", label: "Who's Who", icon: Users },
 ]
 
-interface AssetInfo {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  category?: string
-  thumbnailUrl?: string | null
-  fileUrl?: string | null
-  externalLink?: string | null
-  language?: string[]
-  persona?: string[]
-  campaignGoal?: string | null
-  sentAt?: string | null
-  createdAt: string
-  updatedAt: string
-}
-
 interface PortalSidebarV2Props {
   isAdmin?: boolean
   user?: {
@@ -56,7 +40,7 @@ interface PortalSidebarV2Props {
     email: string
     role: string
   } | null
-  onAssetClick?: (asset: AssetInfo) => void
+  onAssetClick?: (asset: AssetDrawerData) => void
 }
 
 export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2Props) {
@@ -66,7 +50,7 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -134,29 +118,28 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
     }
   }, [searchQuery])
 
-  const handleResultClick = (result: any) => {
+  const handleResultClick = (result: SearchResult) => {
     setSearchOpen(false)
     setSearchQuery("")
     setSearchResults([])
 
     // For asset results, open the drawer instead of navigating
     // Note: onAssetClick (handleInfoClick) already updates the URL
-    if (result.category === "asset" && onAssetClick) {
+    if (result.category === "asset" && onAssetClick && result.type) {
       onAssetClick({
         id: result.id,
         title: result.title,
-        description: result.description,
+        description: result.description ?? null,
         type: result.type,
-        category: result.type?.toLowerCase(),
-        thumbnailUrl: result.thumbnailUrl,
-        fileUrl: result.fileUrl,
-        externalLink: result.externalLink,
-        language: result.language,
-        persona: result.persona,
-        campaignGoal: result.campaignGoal,
-        sentAt: result.sentAt,
-        createdAt: result.createdAt,
-        updatedAt: result.updatedAt,
+        thumbnailUrl: result.thumbnailUrl ?? null,
+        fileUrl: result.fileUrl ?? null,
+        externalLink: result.externalLink ?? null,
+        language: result.language ?? [],
+        persona: result.persona ?? [],
+        campaignGoal: result.campaignGoal ?? null,
+        sentAt: result.sentAt ?? null,
+        createdAt: result.createdAt ?? new Date().toISOString(),
+        updatedAt: result.updatedAt ?? new Date().toISOString(),
       })
       return
     }

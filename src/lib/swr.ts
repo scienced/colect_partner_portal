@@ -1,4 +1,5 @@
 import useSWR, { SWRConfiguration } from "swr"
+import type { Asset, AssetsResponse, HomepageData } from "@/types"
 
 // Track if we're currently refreshing the session to avoid multiple refreshes
 let isRefreshing = false
@@ -98,41 +99,25 @@ export const swrConfig: SWRConfiguration = {
 // Typed hooks for common data types
 export function useAssets(type?: string) {
   const url = type ? `/api/portal/assets?type=${type}` : "/api/portal/assets"
-  return useSWR<{ assets: any[] }>(url, fetcher)
+  return useSWR<AssetsResponse>(url, fetcher)
 }
 
 export function useDecks() {
-  return useSWR<{ assets: any[] }>("/api/portal/assets?type=DECK", fetcher)
+  return useSWR<AssetsResponse>("/api/portal/assets?type=DECK", fetcher)
 }
 
 export function useVideos() {
-  return useSWR<{ assets: any[] }>("/api/portal/assets?type=VIDEO", fetcher)
+  return useSWR<AssetsResponse>("/api/portal/assets?type=VIDEO", fetcher)
 }
 
 export function useCampaigns() {
-  return useSWR<{ assets: any[] }>("/api/portal/assets?type=CAMPAIGN", fetcher)
+  return useSWR<AssetsResponse>("/api/portal/assets?type=CAMPAIGN", fetcher)
 }
 
 export function useGeneralAssets() {
-  return useSWR<{ assets: any[] }>("/api/portal/assets?type=ASSET", fetcher)
-}
-
-export function useDocsUpdates() {
-  return useSWR<{ updates: any[] }>("/api/portal/docs-updates", fetcher)
-}
-
-export function useTeamMembers() {
-  return useSWR<{ members: any[] }>("/api/portal/team-members", fetcher)
+  return useSWR<AssetsResponse>("/api/portal/assets?type=ASSET", fetcher)
 }
 
 export function useHomepageData() {
-  return useSWR<{
-    featured: any[]
-    decks: any[]
-    videos: any[]
-    campaigns: any[]
-    assets: any[]
-    docsUpdates: any[]
-    recentlyUpdated: any[]
-  }>("/api/portal/homepage", fetcher)
+  return useSWR<HomepageData>("/api/portal/homepage", fetcher)
 }
