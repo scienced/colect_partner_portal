@@ -189,7 +189,7 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                  onClick={() => trackAssetDownload(asset.id, asset.title, asset.type)}
+                  onMouseDown={() => trackAssetDownload(asset.id, asset.title, asset.type)}
                 >
                   <Download className="w-4 h-4" />
                   Download{getFileExtension(asset.fileUrl) ? ` ${getFileExtension(asset.fileUrl)}` : ""}
@@ -201,7 +201,7 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-                  onClick={() => trackAssetClick(asset.id, asset.title, asset.type)}
+                  onMouseDown={() => trackAssetClick(asset.id, asset.title, asset.type)}
                 >
                   <ExternalLink className="w-4 h-4" />
                   {category === "deck" ? "View Live Document" : "Open Link"}
