@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card"
 import { Button, IconButton } from "@/components/ui/Button"
 import { Input, Textarea } from "@/components/ui/Input"
 import { Modal, ConfirmModal } from "@/components/ui/Modal"
+import { FileUploader } from "@/components/admin/FileUploader"
 import {
   Plus,
   User,
@@ -182,12 +183,29 @@ export function TeamMembersList({ initialMembers }: TeamMembersListProps) {
         placeholder="https://linkedin.com/in/..."
       />
 
-      <Input
-        label="Photo URL"
-        value={formData.photoUrl}
-        onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
-        placeholder="https://..."
-        helperText="URL to profile photo"
+      {/* Photo preview */}
+      {formData.photoUrl && (
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-16 bg-gray-100 rounded-full relative overflow-hidden flex-shrink-0">
+            <Image
+              src={formData.photoUrl}
+              alt="Photo preview"
+              fill
+              sizes="64px"
+              className="object-cover"
+            />
+          </div>
+          <span className="text-sm text-gray-500">Current photo</span>
+        </div>
+      )}
+
+      <FileUploader
+        label="Profile Photo"
+        folder="thumbnails"
+        accept="image/*"
+        maxSizeMB={10}
+        currentUrl={formData.photoUrl}
+        onUploadComplete={(url) => setFormData({ ...formData, photoUrl: url })}
       />
 
       <Input

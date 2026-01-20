@@ -3,14 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/supertokens/session"
 import { z } from "zod"
 
+// Transform empty strings to null for optional URL/email fields
+const emptyToNull = (val: string | null | undefined) =>
+  val === "" ? null : val
+
 const UpdateTeamMemberSchema = z.object({
   name: z.string().min(1).optional(),
   role: z.string().min(1).optional(),
   department: z.string().min(1).optional(),
-  email: z.string().email().optional().nullable(),
-  photoUrl: z.string().url().optional().nullable(),
-  bio: z.string().optional().nullable(),
-  linkedIn: z.string().url().optional().nullable(),
+  email: z.preprocess(emptyToNull, z.string().email().optional().nullable()),
+  photoUrl: z.preprocess(emptyToNull, z.string().url().optional().nullable()),
+  bio: z.preprocess(emptyToNull, z.string().optional().nullable()),
+  linkedIn: z.preprocess(emptyToNull, z.string().url().optional().nullable()),
   displayOrder: z.number().optional(),
 })
 
