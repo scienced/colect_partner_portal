@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createCode } from "supertokens-web-js/recipe/passwordless"
+import Session from "supertokens-web-js/recipe/session"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -14,6 +15,7 @@ type LoginState = "email" | "sent" | "verifying" | "error"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [state, setState] = useState<LoginState>("email")
   const [error, setError] = useState<string | null>(null)
@@ -22,8 +24,26 @@ export default function LoginPage() {
 
   useEffect(() => {
     initSupertokensFrontend()
-    setReady(true)
-  }, [])
+
+    // Check if user already has a valid session
+    const checkSession = async () => {
+      try {
+        const sessionExists = await Session.doesSessionExist()
+        if (sessionExists) {
+          // User is already logged in, redirect to home or the intended destination
+          const redirectTo = searchParams.get("redirect") || "/"
+          router.replace(redirectTo)
+          return
+        }
+      } catch (err) {
+        // Session check failed, show login form
+        console.error("Session check error:", err)
+      }
+      setReady(true)
+    }
+
+    checkSession()
+  }, [router, searchParams])
 
   const handleSubmitEmail = async (e: React.FormEvent) => {
     e.preventDefault()

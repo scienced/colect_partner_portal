@@ -21,10 +21,10 @@ function getYouTubeThumbnail(url: string | null): string | null {
 
 export async function GET(request: NextRequest) {
   try {
-    // Check session but don't require it strictly - portal layout already handles auth
+    // Check session - return 401 if not authenticated
     const session = await getServerSession()
     if (!session) {
-      return NextResponse.json({ results: [], error: "Not authenticated" })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)

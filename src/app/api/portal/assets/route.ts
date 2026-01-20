@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
-import { getPresignedUrlIfNeeded } from "@/lib/s3"
+import { getPresignedUrls } from "@/lib/s3"
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,14 +21,21 @@ export async function GET(request: NextRequest) {
       orderBy: { publishedAt: "desc" },
     })
 
-    // Generate presigned URLs in parallel
-    const assetsWithUrls = await Promise.all(
-      assets.map(async (asset) => ({
-        ...asset,
-        thumbnailUrl: await getPresignedUrlIfNeeded(asset.thumbnailUrl),
-        fileUrl: await getPresignedUrlIfNeeded(asset.fileUrl),
-      }))
-    )
+    // Batch presign all URLs at once (more efficient than N+1 calls)
+    const thumbnailUrls = assets.map((a) => a.thumbnailUrl)
+    const fileUrls = assets.map((a) => a.fileUrl)
+
+    const [presignedThumbnails, presignedFiles] = await Promise.all([
+      getPresignedUrls(thumbnailUrls),
+      getPresignedUrls(fileUrls),
+    ])
+
+    // Map presigned URLs back to assets
+    const assetsWithUrls = assets.map((asset, i) => ({
+      ...asset,
+      thumbnailUrl: presignedThumbnails[i],
+      fileUrl: presignedFiles[i],
+    }))
 
     return NextResponse.json({ assets: assetsWithUrls })
   } catch (error) {

@@ -294,7 +294,7 @@ export default function HomePage() {
                       {item.thumbnailUrl ? (
                         <Image
                           src={item.thumbnailUrl}
-                          alt=""
+                          alt={`${item.title} thumbnail`}
                           fill
                           sizes="64px"
                           className="object-cover"
@@ -340,7 +340,7 @@ export default function HomePage() {
                       }
                     }}
                     className="absolute top-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors opacity-0 group-hover:opacity-100"
-                    title="View details"
+                    aria-label={`View details for ${item.title}`}
                   >
                     <Info className="w-4 h-4" />
                   </button>
