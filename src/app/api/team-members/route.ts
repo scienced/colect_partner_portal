@@ -4,8 +4,7 @@ import { requireAdmin, requireSession } from "@/lib/supertokens/session"
 import { z } from "zod"
 
 // Transform empty strings to null for optional URL/email fields
-const emptyToNull = (val: string | null | undefined) =>
-  val === "" ? null : val
+const emptyToNull = (val: unknown) => (val === "" ? null : val)
 
 const TeamMemberSchema = z.object({
   name: z.string().min(1),
