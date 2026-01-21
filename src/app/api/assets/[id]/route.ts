@@ -26,13 +26,14 @@ const UpdateAssetSchema = z.object({
 // GET: Get single asset
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireSession()
 
+    const { id } = await params
     const asset = await prisma.asset.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!asset) {
@@ -52,16 +53,17 @@ export async function GET(
 // PUT: Update asset (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
+    const { id } = await params
     const body = await request.json()
     const data = UpdateAssetSchema.parse(body)
 
     const existing = await prisma.asset.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existing) {
@@ -69,7 +71,7 @@ export async function PUT(
     }
 
     const asset = await prisma.asset.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : data.publishedAt === null ? null : undefined,
@@ -98,13 +100,14 @@ export async function PUT(
 // DELETE: Delete asset (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
+    const { id } = await params
     const existing = await prisma.asset.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!existing) {
@@ -112,10 +115,10 @@ export async function DELETE(
     }
 
     await prisma.asset.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
-    await createChangelog("deleted", "asset", params.id, existing.title)
+    await createChangelog("deleted", "asset", id, existing.title)
 
     return NextResponse.json({ success: true })
   } catch (error) {

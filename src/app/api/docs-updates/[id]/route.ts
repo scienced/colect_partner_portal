@@ -17,13 +17,14 @@ const DocsUpdateSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
+    const { id } = await params
     const docsUpdate = await prisma.docsUpdate.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!docsUpdate) {
@@ -39,16 +40,17 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
+    const { id } = await params
     const body = await request.json()
     const data = DocsUpdateSchema.parse(body)
 
     const docsUpdate = await prisma.docsUpdate.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
@@ -69,13 +71,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
+    const { id } = await params
     const docsUpdate = await prisma.docsUpdate.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createChangelog("deleted", "docs_update", docsUpdate.id, docsUpdate.title)
