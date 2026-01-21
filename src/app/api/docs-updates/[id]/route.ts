@@ -4,12 +4,15 @@ import { requireAdmin } from "@/lib/supertokens/session"
 import { createChangelog } from "@/lib/changelog"
 import { z } from "zod"
 
+// Transform empty strings to null for optional fields
+const emptyToNull = (val: unknown) => (val === "" ? null : val)
+
 const DocsUpdateSchema = z.object({
   title: z.string().min(1),
   summary: z.string().min(1),
   deepLink: z.string().url(),
-  category: z.string().optional().nullable(),
-  publishedAt: z.string().datetime().optional().nullable(),
+  category: z.preprocess(emptyToNull, z.string().optional().nullable()),
+  publishedAt: z.preprocess(emptyToNull, z.string().datetime().optional().nullable()),
 })
 
 export async function GET(
