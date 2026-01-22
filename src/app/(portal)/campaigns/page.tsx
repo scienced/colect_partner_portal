@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
@@ -32,7 +32,7 @@ interface AssetInfo {
 
 export default function CampaignsPage() {
   const { data, isLoading, error } = useCampaigns()
-  const campaigns = data?.assets || []
+  const campaigns = useMemo(() => data?.assets || [], [data])
   const searchParams = useSearchParams()
   const router = useRouter()
   const { trackAssetDownload } = useAnalytics()

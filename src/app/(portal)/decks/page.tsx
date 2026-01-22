@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { useSearchParams, useRouter } from "next/navigation"
 import { PageHeader } from "@/components/layout/SectionHeader"
@@ -31,7 +31,7 @@ interface AssetInfo {
 
 export default function DecksPage() {
   const { data, isLoading, error } = useDecks()
-  const decks = data?.assets || []
+  const decks = useMemo(() => data?.assets || [], [data])
   const searchParams = useSearchParams()
   const router = useRouter()
   const { trackAssetDownload } = useAnalytics()

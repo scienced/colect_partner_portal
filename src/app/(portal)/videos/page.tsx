@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
@@ -47,7 +47,7 @@ function getYouTubeThumbnail(videoId: string): string {
 
 export default function VideosPage() {
   const { data, isLoading, error } = useVideos()
-  const videos = data?.assets || []
+  const videos = useMemo(() => data?.assets || [], [data])
   const searchParams = useSearchParams()
   const router = useRouter()
   const { trackAssetClick } = useAnalytics()

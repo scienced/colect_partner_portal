@@ -17,38 +17,38 @@ function VerifyContent() {
 
   useEffect(() => {
     initSupertokensFrontend()
-    verifyMagicLink()
-  }, [])
 
-  const verifyMagicLink = async () => {
-    try {
-      const response = await consumeCode()
+    const verifyMagicLink = async () => {
+      try {
+        const response = await consumeCode()
 
-      if (response.status === "OK") {
-        setState("success")
-        // Redirect to dashboard after short delay
-        setTimeout(() => {
-          router.push("/")
-        }, 1500)
-      } else if (response.status === "INCORRECT_USER_INPUT_CODE_ERROR") {
-        setError("Invalid or expired link. Please request a new one.")
-        setState("error")
-      } else if (response.status === "EXPIRED_USER_INPUT_CODE_ERROR") {
-        setError("This link has expired. Please request a new one.")
-        setState("error")
-      } else if (response.status === "RESTART_FLOW_ERROR") {
-        setError("Session expired. Please start the login process again.")
-        setState("error")
-      } else {
-        setError("Something went wrong. Please try again.")
+        if (response.status === "OK") {
+          setState("success")
+          setTimeout(() => {
+            router.push("/")
+          }, 1500)
+        } else if (response.status === "INCORRECT_USER_INPUT_CODE_ERROR") {
+          setError("Invalid or expired link. Please request a new one.")
+          setState("error")
+        } else if (response.status === "EXPIRED_USER_INPUT_CODE_ERROR") {
+          setError("This link has expired. Please request a new one.")
+          setState("error")
+        } else if (response.status === "RESTART_FLOW_ERROR") {
+          setError("Session expired. Please start the login process again.")
+          setState("error")
+        } else {
+          setError("Something went wrong. Please try again.")
+          setState("error")
+        }
+      } catch (err: any) {
+        console.error("Verification error:", err)
+        setError(err?.message || "Failed to verify. Please try again.")
         setState("error")
       }
-    } catch (err: any) {
-      console.error("Verification error:", err)
-      setError(err?.message || "Failed to verify. Please try again.")
-      setState("error")
     }
-  }
+
+    verifyMagicLink()
+  }, [router])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
