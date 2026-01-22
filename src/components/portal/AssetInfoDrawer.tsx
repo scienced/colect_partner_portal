@@ -200,11 +200,16 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
                   href={asset.externalLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                    asset.fileUrl
+                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-primary text-white hover:bg-primary/90"
+                  )}
                   onMouseDown={() => trackAssetClick(asset.id, asset.title, asset.type)}
                 >
                   <ExternalLink className="w-4 h-4" />
-                  {category === "deck" ? "View Live Document" : "Open Link"}
+                  {category === "deck" ? "View Slides" : "Open Link"}
                 </a>
               )}
             </div>

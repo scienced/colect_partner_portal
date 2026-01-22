@@ -4,11 +4,34 @@ import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { BookOpen, ExternalLink } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { PinnedBadge } from "@/components/portal/PinnedBadge"
 
 export default async function DocsUpdatesPage() {
+  const now = new Date()
+
   const docsUpdates = await prisma.docsUpdate.findMany({
     where: { publishedAt: { not: null } },
-    orderBy: { publishedAt: "desc" },
+    orderBy: [
+      { isPinned: "desc" },
+      { pinOrder: "desc" },
+      { publishedAt: "desc" },
+    ],
+  })
+
+  // Filter out expired pins
+  const processedDocs = docsUpdates.map((doc) => {
+    const isPinActive = doc.isPinned &&
+      (!doc.pinExpiresAt || new Date(doc.pinExpiresAt) > now)
+    return { ...doc, isPinned: isPinActive }
+  }).sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    if (a.isPinned && b.isPinned) {
+      if (a.pinOrder !== b.pinOrder) return b.pinOrder - a.pinOrder
+    }
+    const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
+    const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
+    return bDate - aDate
   })
 
   return (
@@ -18,10 +41,16 @@ export default async function DocsUpdatesPage() {
         description="Latest documentation changes and additions"
       />
 
-      {docsUpdates.length > 0 ? (
+      {processedDocs.length > 0 ? (
         <div className="space-y-4">
-          {docsUpdates.map((doc) => (
-            <Card key={doc.id} hover padding="lg">
+          {processedDocs.map((doc) => (
+            <Card key={doc.id} hover padding="lg" className="relative">
+              {/* Pinned Badge */}
+              {doc.isPinned && (
+                <div className="absolute top-4 right-4">
+                  <PinnedBadge />
+                </div>
+              )}
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                   <BookOpen className="w-6 h-6 text-blue-600" />

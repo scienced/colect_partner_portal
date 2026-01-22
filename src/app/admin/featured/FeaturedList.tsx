@@ -229,13 +229,29 @@ export function FeaturedList({
   const getContentOptions = () => {
     switch (formData.entityType) {
       case "asset":
-        return assets.map((a) => ({ id: a.id, title: a.title }))
+        return assets.map((a) => ({ id: a.id, title: a.title, description: a.description }))
       case "docs_update":
-        return docsUpdates.map((d) => ({ id: d.id, title: d.title }))
+        return docsUpdates.map((d) => ({ id: d.id, title: d.title, description: d.summary }))
       case "product_update":
-        return productUpdates.map((p) => ({ id: p.id, title: p.title }))
+        return productUpdates.map((p) => ({ id: p.id, title: p.title, description: p.content?.slice(0, 200) }))
       default:
         return []
+    }
+  }
+
+  const handleEntitySelect = (entityId: string) => {
+    const options = getContentOptions()
+    const selected = options.find(opt => opt.id === entityId)
+
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        entityId,
+        title: selected.title,
+        description: selected.description || "",
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, entityId }))
     }
   }
 
@@ -346,6 +362,8 @@ export function FeaturedList({
             ...formData,
             entityType: e.target.value as "asset" | "docs_update" | "product_update",
             entityId: "",
+            title: "",
+            description: "",
           })
         }
       >
@@ -357,7 +375,7 @@ export function FeaturedList({
       <Select
         label="Select Content"
         value={formData.entityId}
-        onChange={(e) => setFormData({ ...formData, entityId: e.target.value })}
+        onChange={(e) => handleEntitySelect(e.target.value)}
         required
       >
         <option value="">Select...</option>

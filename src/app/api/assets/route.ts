@@ -5,6 +5,8 @@ import { createChangelog } from "@/lib/changelog"
 import { AssetType } from "@prisma/client"
 import { z } from "zod"
 
+const MAX_PINNED_PER_TYPE = 3
+
 const AssetSchema = z.object({
   type: z.enum(["DECK", "CAMPAIGN", "ASSET", "VIDEO"]),
   title: z.string().min(1),
@@ -22,6 +24,10 @@ const AssetSchema = z.object({
   externalLink: z.string().optional(),
   publishedAt: z.string().datetime().optional().nullable(),
   sentAt: z.string().datetime().optional().nullable(),
+  isPinned: z.boolean().optional().default(false),
+  pinnedAt: z.string().datetime().optional().nullable(),
+  pinExpiresAt: z.string().datetime().optional().nullable(),
+  pinOrder: z.number().optional().default(0),
 })
 
 // GET: List assets (with search and filters)
@@ -81,11 +87,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = AssetSchema.parse(body)
 
+    // Check max pinned limit if trying to pin
+    if (data.isPinned) {
+      const pinnedCount = await prisma.asset.count({
+        where: {
+          type: data.type,
+          isPinned: true,
+          OR: [
+            { pinExpiresAt: null },
+            { pinExpiresAt: { gt: new Date() } },
+          ],
+        },
+      })
+
+      if (pinnedCount >= MAX_PINNED_PER_TYPE) {
+        return NextResponse.json(
+          { error: `Maximum of ${MAX_PINNED_PER_TYPE} pinned items per category allowed` },
+          { status: 400 }
+        )
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
         sentAt: data.sentAt ? new Date(data.sentAt) : null,
+        pinnedAt: data.isPinned ? new Date() : null,
+        pinExpiresAt: data.pinExpiresAt ? new Date(data.pinExpiresAt) : null,
       },
     })
 

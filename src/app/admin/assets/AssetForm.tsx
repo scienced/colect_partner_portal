@@ -1,12 +1,31 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Asset, AssetType } from "@prisma/client"
 import { Button } from "@/components/ui/Button"
 import { Input, Textarea, Select, Checkbox } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { FileUploader } from "@/components/admin/FileUploader"
-import { Wand2 } from "lucide-react"
+import { Wand2, Pin } from "lucide-react"
+import { endOfWeek, endOfMonth, addDays, format } from "date-fns"
+
+type PinDuration = "14days" | "endOfWeek" | "endOfMonth" | "custom"
+
+function calculatePinExpiresAt(duration: PinDuration, customDate: string | null): Date | null {
+  const now = new Date()
+  switch (duration) {
+    case "14days":
+      return addDays(now, 14)
+    case "endOfWeek":
+      return endOfWeek(now, { weekStartsOn: 1 }) // Monday as start of week
+    case "endOfMonth":
+      return endOfMonth(now)
+    case "custom":
+      return customDate ? new Date(customDate) : null
+    default:
+      return null
+  }
+}
 
 interface AssetFormProps {
   open: boolean
@@ -29,6 +48,8 @@ export function AssetForm({
   const [loading, setLoading] = useState(false)
   const [generatingThumbnail, setGeneratingThumbnail] = useState(false)
   const [thumbnailError, setThumbnailError] = useState<string | null>(null)
+  const [pinDuration, setPinDuration] = useState<PinDuration>("14days")
+  const [customPinDate, setCustomPinDate] = useState<string>("")
   const [formData, setFormData] = useState({
     type: initialData?.type || defaultType,
     title: initialData?.title || "",
@@ -45,6 +66,10 @@ export function AssetForm({
       : null,
     sentAt: initialData?.sentAt
       ? new Date(initialData.sentAt).toISOString().slice(0, 16)
+      : "",
+    isPinned: initialData?.isPinned || false,
+    pinExpiresAt: initialData?.pinExpiresAt
+      ? new Date(initialData.pinExpiresAt).toISOString().slice(0, 16)
       : "",
   })
 
@@ -68,19 +93,47 @@ export function AssetForm({
         sentAt: initialData?.sentAt
           ? new Date(initialData.sentAt).toISOString().slice(0, 16)
           : "",
+        isPinned: initialData?.isPinned || false,
+        pinExpiresAt: initialData?.pinExpiresAt
+          ? new Date(initialData.pinExpiresAt).toISOString().slice(0, 16)
+          : "",
       })
       setThumbnailError(null)
+      setPinDuration("14days")
+      setCustomPinDate("")
     }
   }, [open, initialData, defaultType])
+
+  // Calculate pin expiration date preview
+  const pinExpiresAtPreview = useMemo(() => {
+    if (!formData.isPinned) return null
+    if (pinDuration === "custom" && customPinDate) {
+      return new Date(customPinDate)
+    }
+    return calculatePinExpiresAt(pinDuration, customPinDate)
+  }, [formData.isPinned, pinDuration, customPinDate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
+      // Calculate pin expiration date
+      let pinExpiresAt: Date | null = null
+      if (formData.isPinned) {
+        if (pinDuration === "custom" && customPinDate) {
+          pinExpiresAt = new Date(customPinDate)
+        } else {
+          pinExpiresAt = calculatePinExpiresAt(pinDuration, customPinDate)
+        }
+      }
+
       await onSubmit({
         ...formData,
         publishedAt: formData.publishedAt ? new Date(formData.publishedAt) : null,
         sentAt: formData.sentAt ? new Date(formData.sentAt) : null,
+        isPinned: formData.isPinned,
+        pinnedAt: formData.isPinned ? new Date() : null,
+        pinExpiresAt,
       })
     } finally {
       setLoading(false)
@@ -213,6 +266,19 @@ export function AssetForm({
           />
         )}
 
+        {/* Campaign-specific: External Link for design files */}
+        {formData.type === "CAMPAIGN" && (
+          <Input
+            label="Design Link (optional)"
+            value={formData.externalLink}
+            onChange={(e) =>
+              setFormData({ ...formData, externalLink: e.target.value })
+            }
+            placeholder="https://figma.com/... or https://docs.google.com/..."
+            helperText="Link to Figma designs, Google Slides ads, or other design files"
+          />
+        )}
+
         {/* File upload - different for videos and campaigns */}
         {formData.type === "VIDEO" ? (
           <FileUploader
@@ -227,14 +293,14 @@ export function AssetForm({
           />
         ) : formData.type === "CAMPAIGN" ? (
           <FileUploader
-            label="Campaign Email (HTML from SingleFile)"
+            label="Campaign File — HTML email, PDF, presentation, or image (optional)"
             folder="campaigns"
             currentUrl={formData.fileUrl}
             onUploadComplete={(url) =>
               setFormData({ ...formData, fileUrl: url })
             }
-            accept=".html,.htm"
-            maxSizeMB={20}
+            accept=".html,.htm,.pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg"
+            maxSizeMB={50}
           />
         ) : formData.type === "ASSET" ? (
           <FileUploader
@@ -273,17 +339,31 @@ export function AssetForm({
             maxSizeMB={5}
           />
           {formData.type === "CAMPAIGN" && (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => generateThumbnail(formData.fileUrl)}
-                disabled={generatingThumbnail || !formData.fileUrl}
-              >
-                <Wand2 className="w-4 h-4 mr-1" />
-                {generatingThumbnail ? "Generating..." : "Auto-generate from email"}
-              </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {formData.fileUrl && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => generateThumbnail(formData.fileUrl)}
+                  disabled={generatingThumbnail}
+                >
+                  <Wand2 className="w-4 h-4 mr-1" />
+                  {generatingThumbnail ? "Generating..." : "From file"}
+                </Button>
+              )}
+              {formData.externalLink && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => generateThumbnail(formData.externalLink)}
+                  disabled={generatingThumbnail}
+                >
+                  <Wand2 className="w-4 h-4 mr-1" />
+                  {generatingThumbnail ? "Generating..." : "From design link"}
+                </Button>
+              )}
               {thumbnailError && (
                 <span className="text-sm text-red-500">{thumbnailError}</span>
               )}
@@ -383,12 +463,13 @@ export function AssetForm({
               placeholder="e.g., Increase partner engagement"
             />
             <Input
-              label="Campaign Link"
+              label="Campaign Platform Link (optional)"
               value={formData.campaignLink}
               onChange={(e) =>
                 setFormData({ ...formData, campaignLink: e.target.value })
               }
-              placeholder="https://..."
+              placeholder="https://app.hubspot.com/... or https://mailchimp.com/..."
+              helperText="Link to campaign in HubSpot, Mailchimp, etc."
             />
           </>
         )}
@@ -405,6 +486,58 @@ export function AssetForm({
             })
           }
         />
+
+        {/* Pin to top */}
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Pin className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-medium text-gray-700">Pin to Top</span>
+          </div>
+          <Checkbox
+            label="Pin to top of category"
+            description="Display this asset at the top of its category page"
+            checked={formData.isPinned}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                isPinned: e.target.checked,
+              })
+            }
+          />
+
+          {formData.isPinned && (
+            <div className="mt-4 space-y-3 pl-6 border-l-2 border-amber-200">
+              <Select
+                label="Pin Duration"
+                value={pinDuration}
+                onChange={(e) => setPinDuration(e.target.value as PinDuration)}
+              >
+                <option value="14days">14 days</option>
+                <option value="endOfWeek">End of week</option>
+                <option value="endOfMonth">End of month</option>
+                <option value="custom">Custom date</option>
+              </Select>
+
+              {pinDuration === "custom" && (
+                <Input
+                  label="Custom Expiration Date"
+                  type="datetime-local"
+                  value={customPinDate}
+                  onChange={(e) => setCustomPinDate(e.target.value)}
+                />
+              )}
+
+              {pinExpiresAtPreview && (
+                <div className="bg-amber-50 rounded-md p-3">
+                  <p className="text-sm text-amber-800">
+                    <span className="font-medium">Will unpin:</span>{" "}
+                    {format(pinExpiresAtPreview, "MMM d, yyyy 'at' h:mm a")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </form>
     </Modal>
   )

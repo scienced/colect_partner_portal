@@ -141,6 +141,13 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
           <Button
             variant="secondary"
             icon={<Plus className="w-4 h-4" />}
+            onClick={() => openAssetForm("ASSET")}
+          >
+            Add Asset/Link
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Plus className="w-4 h-4" />}
             onClick={() => setShowDocsForm(true)}
           >
             Add Docs Update

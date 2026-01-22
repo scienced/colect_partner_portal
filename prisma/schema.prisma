@@ -101,6 +101,12 @@ model Asset {
   updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
 
+  // Pinning
+  isPinned     Boolean   @default(false)
+  pinnedAt     DateTime?
+  pinExpiresAt DateTime?
+  pinOrder     Int       @default(0)
+
   // Relations
   changelogs Changelog[]
   featuredIn FeaturedContent[]
@@ -109,6 +115,7 @@ model Asset {
   @@index([createdAt])
   @@index([updatedAt])
   @@index([publishedAt])
+  @@index([type, isPinned])
 }
 
 // Documentation updates
@@ -123,12 +130,19 @@ model DocsUpdate {
   updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
 
+  // Pinning
+  isPinned     Boolean   @default(false)
+  pinnedAt     DateTime?
+  pinExpiresAt DateTime?
+  pinOrder     Int       @default(0)
+
   changelogs Changelog[]
   featuredIn FeaturedContent[]
 
   @@index([category])
   @@index([createdAt])
   @@index([publishedAt])
+  @@index([isPinned])
 }
 
 // Product updates and release notes

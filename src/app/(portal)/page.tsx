@@ -63,6 +63,8 @@ export default function HomePage() {
     // Generate YouTube thumbnail for videos if no thumbnail is set
     const thumbnailUrl = item.thumbnailUrl ||
       (item.type === "VIDEO" ? getYouTubeThumbnail(item.externalLink) : undefined)
+    // For campaigns, use externalLink or fallback to campaignLink
+    const externalLink = item.externalLink || item.campaignLink || item.deepLink
     return {
       id: item.id,
       title: item.title,
@@ -72,7 +74,7 @@ export default function HomePage() {
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
       fileUrl: item.fileUrl,
-      externalLink: item.externalLink || item.deepLink,
+      externalLink,
       language: item.language,
       persona: item.persona,
       campaignGoal: item.campaignGoal,
@@ -163,6 +165,7 @@ export default function HomePage() {
     persona: deck.persona,
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt,
+    isPinned: deck.isPinned,
   }))
 
   const videoItems: ContentItem[] = videos.map((video) => ({
@@ -180,6 +183,7 @@ export default function HomePage() {
     persona: video.persona,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
+    isPinned: video.isPinned,
   }))
 
   const campaignItems: ContentItem[] = campaigns.map((campaign) => ({
@@ -192,15 +196,7 @@ export default function HomePage() {
     external: !!(campaign.fileUrl || campaign.campaignLink),
     fileUrl: campaign.fileUrl,
     externalLink: campaign.campaignLink,
-    meta: campaign.sentAt
-      ? new Date(campaign.sentAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : undefined,
+    // Don't set meta for campaigns - date is shown in the date pill
     category: "campaign" as const,
     language: campaign.language,
     persona: campaign.persona,
@@ -208,6 +204,7 @@ export default function HomePage() {
     sentAt: campaign.sentAt,
     createdAt: campaign.createdAt,
     updatedAt: campaign.updatedAt,
+    isPinned: campaign.isPinned,
   }))
 
   const assetItems: ContentItem[] = assets.map((asset) => ({
@@ -225,6 +222,7 @@ export default function HomePage() {
     persona: asset.persona,
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
+    isPinned: asset.isPinned,
   }))
 
   const docsItems: ContentItem[] = docsUpdates.map((doc) => ({
@@ -239,6 +237,7 @@ export default function HomePage() {
     category: "docs" as const,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
+    isPinned: doc.isPinned,
   }))
 
   const recentItems: ContentItem[] = recentlyUpdated.map((item) => {
@@ -246,6 +245,8 @@ export default function HomePage() {
     // Generate YouTube thumbnail for videos if no thumbnail is set
     const thumbnailUrl = item.thumbnailUrl ||
       (item.type === "VIDEO" ? getYouTubeThumbnail(item.externalLink) : undefined)
+    // For campaigns, use externalLink or fallback to campaignLink
+    const externalLink = item.externalLink || (item as any).campaignLink || undefined
     return {
       id: item.id,
       title: item.title,
@@ -255,7 +256,7 @@ export default function HomePage() {
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
       fileUrl: item.fileUrl,
-      externalLink: item.externalLink,
+      externalLink,
       meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
       category: item.type?.toLowerCase() as ContentItem["category"],
       status: isNew ? "new" as const : "updated" as const,
@@ -265,6 +266,7 @@ export default function HomePage() {
       sentAt: item.sentAt,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      isPinned: item.isPinned,
     }
   })
 
@@ -290,13 +292,13 @@ export default function HomePage() {
                   className="block"
                 >
                   <div className="flex items-start gap-4">
-                    <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${categoryColors[item.category] || "from-primary to-primary/70"} flex items-center justify-center flex-shrink-0 overflow-hidden relative`}>
+                    <div className={`w-24 aspect-video rounded-lg bg-gradient-to-br ${categoryColors[item.category] || "from-primary to-primary/70"} flex items-center justify-center flex-shrink-0 overflow-hidden relative`}>
                       {item.thumbnailUrl ? (
                         <Image
                           src={item.thumbnailUrl}
                           alt={`${item.title} thumbnail`}
                           fill
-                          sizes="64px"
+                          sizes="96px"
                           className="object-cover"
                         />
                       ) : (

@@ -4,8 +4,9 @@ import { uploadThumbnail } from "@/lib/s3"
 import sharp from "sharp"
 
 // Thumbnail settings
-const THUMBNAIL_WIDTH = 400
-const THUMBNAIL_QUALITY = 80
+const THUMBNAIL_WIDTH = 800
+const THUMBNAIL_HEIGHT = 450  // 16:9 aspect ratio
+const THUMBNAIL_QUALITY = 85
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,9 +46,10 @@ export async function POST(request: NextRequest) {
 
     // Process image with sharp - resize and optimize
     const processedBuffer = await sharp(buffer)
-      .resize(THUMBNAIL_WIDTH, null, {
+      .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
         withoutEnlargement: true, // Don't upscale small images
-        fit: "inside",
+        fit: "cover",
+        position: "centre",
       })
       .jpeg({ quality: THUMBNAIL_QUALITY, progressive: true })
       .toBuffer()

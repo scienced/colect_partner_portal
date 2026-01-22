@@ -4,6 +4,8 @@ import { requireAdmin, requireSession } from "@/lib/supertokens/session"
 import { createChangelog } from "@/lib/changelog"
 import { z } from "zod"
 
+const MAX_PINNED_PER_TYPE = 3
+
 const UpdateAssetSchema = z.object({
   type: z.enum(["DECK", "CAMPAIGN", "ASSET", "VIDEO"]).optional(),
   title: z.string().min(1).optional(),
@@ -21,6 +23,10 @@ const UpdateAssetSchema = z.object({
   externalLink: z.string().optional().nullable(),
   publishedAt: z.string().datetime().optional().nullable(),
   sentAt: z.string().datetime().optional().nullable(),
+  isPinned: z.boolean().optional(),
+  pinnedAt: z.string().datetime().optional().nullable(),
+  pinExpiresAt: z.string().datetime().optional().nullable(),
+  pinOrder: z.number().optional(),
 })
 
 // GET: Get single asset
@@ -70,12 +76,37 @@ export async function PUT(
       return NextResponse.json({ error: "Asset not found" }, { status: 404 })
     }
 
+    // Check max pinned limit if trying to pin (and not already pinned)
+    const assetType = data.type || existing.type
+    if (data.isPinned && !existing.isPinned) {
+      const pinnedCount = await prisma.asset.count({
+        where: {
+          type: assetType,
+          isPinned: true,
+          id: { not: id }, // Exclude current asset
+          OR: [
+            { pinExpiresAt: null },
+            { pinExpiresAt: { gt: new Date() } },
+          ],
+        },
+      })
+
+      if (pinnedCount >= MAX_PINNED_PER_TYPE) {
+        return NextResponse.json(
+          { error: `Maximum of ${MAX_PINNED_PER_TYPE} pinned items per category allowed` },
+          { status: 400 }
+        )
+      }
+    }
+
     const asset = await prisma.asset.update({
       where: { id },
       data: {
         ...data,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : data.publishedAt === null ? null : undefined,
         sentAt: data.sentAt ? new Date(data.sentAt) : data.sentAt === null ? null : undefined,
+        pinnedAt: data.isPinned && !existing.isPinned ? new Date() : data.isPinned === false ? null : undefined,
+        pinExpiresAt: data.pinExpiresAt ? new Date(data.pinExpiresAt) : data.pinExpiresAt === null ? null : undefined,
       },
     })
 

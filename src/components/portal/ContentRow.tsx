@@ -3,29 +3,10 @@
 import { useRef, useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Info, File } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Calendar } from "lucide-react"
+import { cn, getDateStatus } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
-
-// Helper to extract file extension from URL
-function getFileExtension(url: string | null | undefined): string | null {
-  if (!url) return null
-  try {
-    // Remove query params and get the pathname
-    const pathname = new URL(url, "https://example.com").pathname
-    const match = pathname.match(/\.([a-zA-Z0-9]+)$/)
-    if (match) {
-      return match[1].toUpperCase()
-    }
-  } catch {
-    // Fallback: try simple regex on the string
-    const match = url.match(/\.([a-zA-Z0-9]+)(?:\?|$)/)
-    if (match) {
-      return match[1].toUpperCase()
-    }
-  }
-  return null
-}
+import { PinnedBadge } from "@/components/portal/PinnedBadge"
 
 export interface ContentItem {
   id: string
@@ -46,6 +27,7 @@ export interface ContentItem {
   sentAt?: string | null
   createdAt?: string
   updatedAt?: string
+  isPinned?: boolean
 }
 
 interface ContentRowProps {
@@ -70,6 +52,51 @@ const categoryIcons: Record<string, React.ReactNode> = {
   campaign: <Mail className="w-8 h-8 text-white/70" />,
   asset: <ExternalLink className="w-8 h-8 text-white/70" />,
   docs: <BookOpen className="w-8 h-8 text-white/70" />,
+}
+
+// Helper functions for quick action labels
+function getFileLabel(fileUrl: string): string {
+  const ext = fileUrl.split('.').pop()?.split('?')[0]?.toUpperCase()
+  return ext || "Download"
+}
+
+function getExternalLabel(category: string): string {
+  switch (category) {
+    case "deck": return "Slides"
+    case "video": return "Watch"
+    case "campaign": return "View"
+    case "docs": return "Read"
+    default: return "Open"
+  }
+}
+
+// Quick action pill component
+function QuickActionPill({
+  href,
+  icon,
+  label,
+  onClick,
+}: {
+  href: string
+  icon: React.ReactNode
+  label: string
+  onClick?: () => void
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick?.()
+      }}
+      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gray-100 hover:bg-primary/10 text-gray-600 hover:text-primary rounded-md transition-colors"
+    >
+      {icon}
+      {label}
+    </a>
+  )
 }
 
 export function ContentRow({ title, viewAllHref, items, variant = "default", onInfoClick }: ContentRowProps) {
@@ -189,30 +216,47 @@ function ContentCard({
   const icon = categoryIcons[category] || categoryIcons.deck
 
   const handleCardClick = () => {
-    const assetType = item.type || category.toUpperCase()
-
-    // Track as download if clicking opens a file (PDF, document)
-    // Track as click if opening an external link (YouTube, Google Doc, etc.)
-    if (item.fileUrl && item.href === item.fileUrl) {
-      trackAssetDownload(item.id, item.title, assetType)
-    } else {
-      trackAssetClick(item.id, item.title, assetType)
+    // Card click now opens the side panel
+    if (onInfoClick) {
+      onInfoClick(item)
     }
   }
 
+  // Handlers for quick action links
+  const handleQuickDownload = () => {
+    const assetType = item.type || category.toUpperCase()
+    trackAssetDownload(item.id, item.title, assetType)
+  }
+
+  const handleQuickExternalClick = () => {
+    const assetType = item.type || category.toUpperCase()
+    trackAssetClick(item.id, item.title, assetType)
+  }
+
+  // Determine which quick actions to show
+  const showFileDownload = item.fileUrl && ["deck", "campaign", "asset"].includes(category)
+  const showExternalLink = item.externalLink || (category === "video" && item.href) || (category === "docs" && item.href)
+  const externalLinkHref = item.externalLink || item.href
+
   if (variant === "docs") {
     return (
-      <div className={cn(
-        "flex-shrink-0 group/card rounded-xl overflow-hidden bg-white border border-gray-200 hover:border-primary/30 hover:shadow-lg transition-all duration-300 relative",
-        cardWidth
-      )}>
-        <a
-          href={item.href}
-          target={item.external ? "_blank" : undefined}
-          rel={item.external ? "noopener noreferrer" : undefined}
-          className="block p-4"
-          onClick={handleCardClick}
-        >
+      <div
+        className={cn(
+          "flex-shrink-0 group/card rounded-xl overflow-hidden bg-white border border-gray-200 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer relative",
+          cardWidth
+        )}
+        onClick={handleCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+      >
+        {/* Pinned Badge */}
+        {item.isPinned && (
+          <div className="absolute top-2 right-2 z-10">
+            <PinnedBadge />
+          </div>
+        )}
+        <div className="p-4">
           <div className="flex gap-4">
             <div className={cn(
               "w-12 h-12 rounded-lg bg-gradient-to-br flex-shrink-0 flex items-center justify-center",
@@ -220,7 +264,7 @@ function ContentCard({
             )}>
               <BookOpen className="w-6 h-6 text-white" />
             </div>
-            <div className="flex-1 min-w-0 pr-6">
+            <div className="flex-1 min-w-0">
               <h3
                 className="font-medium text-gray-900 group-hover/card:text-primary transition-colors line-clamp-1 tooltip"
                 data-tooltip={item.title}
@@ -234,146 +278,148 @@ function ContentCard({
                 <p className="text-xs text-gray-400 mt-1">{item.meta}</p>
               )}
             </div>
-            {item.external && <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 absolute top-4 right-4" />}
           </div>
-        </a>
-        {onInfoClick && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onInfoClick(item)
-            }}
-            className="absolute bottom-3 right-3 p-1.5 rounded-md text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors opacity-0 group-hover/card:opacity-100"
-            title="View details"
-          >
-            <Info className="w-4 h-4" />
-          </button>
-        )}
+          {/* Quick Actions */}
+          {showExternalLink && (
+            <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+              <QuickActionPill
+                href={externalLinkHref}
+                icon={<ExternalLink className="w-3 h-3" />}
+                label="Read"
+                onClick={handleQuickExternalClick}
+              />
+            </div>
+          )}
+        </div>
       </div>
     )
   }
 
-  const CardWrapper = item.external ? "a" : Link
-  const cardProps = item.external
-    ? { href: item.href, target: "_blank", rel: "noopener noreferrer" }
-    : { href: item.href }
-
   return (
-    <div className={cn(
-      "flex-shrink-0 group/card rounded-xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] relative",
-      cardWidth
-    )}>
-      <CardWrapper
-        {...cardProps}
-        className="block"
-        onClick={handleCardClick}
-      >
-        {/* Thumbnail */}
-        <div className={cn("relative overflow-hidden rounded-t-xl", cardHeight)}>
-          {item.thumbnailUrl ? (
-            <Image
-              src={item.thumbnailUrl}
-              alt={item.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 288px"
-              className="object-cover"
-            />
-          ) : (
-            <div className={cn(
-              "w-full h-full bg-gradient-to-br flex items-center justify-center",
-              gradientColor
-            )}>
-              {icon}
-            </div>
-          )}
-
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-colors flex items-center justify-center">
-            {category === "video" && (
-              <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity scale-75 group-hover/card:scale-100">
-                <Play className="w-6 h-6 text-gray-900 ml-1" fill="currentColor" />
-              </div>
-            )}
-            {category === "deck" && item.fileUrl && (
-              <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity scale-75 group-hover/card:scale-100">
-                <Download className="w-5 h-5 text-gray-900" />
-              </div>
-            )}
-          </div>
-
-          {/* Category Badge */}
-          <div className="absolute top-2 left-2">
-            <span className={cn(
-              "text-xs font-medium px-2 py-1 rounded-md bg-black/60 text-white capitalize"
-            )}>
-              {category}
-            </span>
-          </div>
-
-          {/* External indicator */}
-          {item.external && (
-            <div className="absolute top-2 right-2">
-              <ExternalLink className="w-4 h-4 text-white drop-shadow-lg" />
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="p-3 pr-10">
-          <h3
-            className="font-medium text-gray-900 line-clamp-1 group-hover/card:text-primary transition-colors tooltip"
-            data-tooltip={item.title}
-          >
-            {item.title}
-          </h3>
-          {item.description && (
-            <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{item.description}</p>
-          )}
-          {(item.meta || item.status || (item.fileUrl && ["deck", "campaign", "asset"].includes(category))) && (
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {item.status && (
-                <span className={cn(
-                  "inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
-                  item.status === "new"
-                    ? "bg-green-50 text-green-700"
-                    : "bg-blue-50 text-blue-700"
-                )}>
-                  {item.status === "new" ? (
-                    <Plus className="w-3 h-3" />
-                  ) : (
-                    <RefreshCw className="w-3 h-3" />
-                  )}
-                  {item.status === "new" ? "New" : "Updated"}
-                </span>
-              )}
-              {/* File extension badge */}
-              {item.fileUrl && ["deck", "campaign", "asset"].includes(category) && getFileExtension(item.fileUrl) && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                  <File className="w-3 h-3" />
-                  {getFileExtension(item.fileUrl)}
-                </span>
-              )}
-              {item.meta && (
-                <p className="text-xs text-gray-400">{item.meta}</p>
-              )}
-            </div>
-          )}
-        </div>
-      </CardWrapper>
-
-      {/* Info Button */}
-      {onInfoClick && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onInfoClick(item)
-          }}
-          className="absolute bottom-2.5 right-2.5 p-1.5 rounded-md text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors opacity-0 group-hover/card:opacity-100 z-10"
-          title="View details"
-        >
-          <Info className="w-4 h-4" />
-        </button>
+    <div
+      className={cn(
+        "flex-shrink-0 group/card rounded-xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer",
+        cardWidth
       )}
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
+    >
+      {/* Thumbnail */}
+      <div className={cn("relative overflow-hidden rounded-t-xl", cardHeight)}>
+        {item.thumbnailUrl ? (
+          <Image
+            src={item.thumbnailUrl}
+            alt={item.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 288px"
+            className="object-cover"
+          />
+        ) : (
+          <div className={cn(
+            "w-full h-full bg-gradient-to-br flex items-center justify-center",
+            gradientColor
+          )}>
+            {icon}
+          </div>
+        )}
+
+        {/* Category Badge */}
+        <div className="absolute top-2 left-2">
+          <span className={cn(
+            "text-xs font-medium px-2 py-1 rounded-md bg-black/60 text-white capitalize"
+          )}>
+            {category}
+          </span>
+        </div>
+
+        {/* Pinned Badge */}
+        {item.isPinned && (
+          <div className="absolute top-2 right-2">
+            <PinnedBadge />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-3">
+        <h3
+          className="font-medium text-gray-900 line-clamp-1 group-hover/card:text-primary transition-colors tooltip"
+          data-tooltip={item.title}
+        >
+          {item.title}
+        </h3>
+        {item.description && (
+          <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{item.description}</p>
+        )}
+        {/* Campaign Date Pill */}
+        {category === "campaign" && item.sentAt && (() => {
+          const dateStatus = getDateStatus(item.sentAt)
+          const formattedDate = new Date(item.sentAt).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+          return dateStatus ? (
+            <div className="mt-1">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-white",
+                  dateStatus === "past" ? "bg-gray-700" : "bg-primary"
+                )}
+              >
+                <Calendar className="w-3 h-3" />
+                {dateStatus === "past" ? "Sent" : "Scheduled"}: {formattedDate}
+              </span>
+            </div>
+          ) : null
+        })()}
+        {(item.meta || item.status) && (
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {item.status && (
+              <span className={cn(
+                "inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
+                item.status === "new"
+                  ? "bg-green-50 text-green-700"
+                  : "bg-blue-50 text-blue-700"
+              )}>
+                {item.status === "new" ? (
+                  <Plus className="w-3 h-3" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+                {item.status === "new" ? "New" : "Updated"}
+              </span>
+            )}
+            {item.meta && (
+              <p className="text-xs text-gray-400">{item.meta}</p>
+            )}
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        {(showFileDownload || showExternalLink) && (
+          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+            {showFileDownload && item.fileUrl && (
+              <QuickActionPill
+                href={item.fileUrl}
+                icon={<Download className="w-3 h-3" />}
+                label={getFileLabel(item.fileUrl)}
+                onClick={handleQuickDownload}
+              />
+            )}
+            {showExternalLink && (
+              <QuickActionPill
+                href={externalLinkHref}
+                icon={<ExternalLink className="w-3 h-3" />}
+                label={getExternalLabel(category)}
+                onClick={handleQuickExternalClick}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

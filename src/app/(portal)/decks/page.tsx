@@ -7,9 +7,10 @@ import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
-import { FileText, Download, Info } from "lucide-react"
+import { FileText, Download } from "lucide-react"
 import { useDecks } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import { PinnedBadge } from "@/components/portal/PinnedBadge"
 
 interface AssetInfo {
   id: string
@@ -101,7 +102,19 @@ export default function DecksPage() {
       ) : decks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {decks.map((deck: any) => (
-            <Card key={deck.id} hover padding="md" className="group relative">
+            <Card
+              key={deck.id}
+              hover
+              padding="md"
+              className="group relative cursor-pointer"
+              onClick={() => handleInfoClick(deck)}
+            >
+              {/* Pinned Badge */}
+              {deck.isPinned && (
+                <div className="absolute top-2 left-2 z-10">
+                  <PinnedBadge />
+                </div>
+              )}
               <div className="flex flex-col h-full">
                 {deck.thumbnailUrl ? (
                   <div className="aspect-video bg-gray-100 rounded-md mb-4 overflow-hidden relative">
@@ -139,21 +152,16 @@ export default function DecksPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-4 inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
-                    onClick={() => handleDownload(deck)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDownload(deck)
+                    }}
                   >
                     <Download className="w-4 h-4" />
                     Download
                   </a>
                 )}
               </div>
-              {/* Info Button */}
-              <button
-                onClick={() => handleInfoClick(deck)}
-                className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 text-gray-400 hover:text-primary hover:bg-white transition-colors opacity-0 group-hover:opacity-100 shadow-sm"
-                title="View details"
-              >
-                <Info className="w-4 h-4" />
-              </button>
             </Card>
           ))}
         </div>

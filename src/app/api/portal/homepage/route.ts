@@ -18,6 +18,31 @@ function getYouTubeThumbnail(url: string | null): string | null {
   return null
 }
 
+// Helper to check if pin is still active
+function isPinActive(item: { isPinned: boolean; pinExpiresAt: Date | null }): boolean {
+  if (!item.isPinned) return false
+  if (!item.pinExpiresAt) return true
+  return new Date(item.pinExpiresAt) > new Date()
+}
+
+// Helper to process assets with pin status
+function processAssetPins<T extends { isPinned: boolean; pinExpiresAt: Date | null; pinOrder: number; publishedAt: Date | null }>(
+  assets: T[]
+): T[] {
+  return assets
+    .map((a) => ({ ...a, isPinned: isPinActive(a) }))
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1
+      if (!a.isPinned && b.isPinned) return 1
+      if (a.isPinned && b.isPinned && a.pinOrder !== b.pinOrder) {
+        return b.pinOrder - a.pinOrder
+      }
+      const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
+      const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
+      return bDate - aDate
+    })
+}
+
 export async function GET() {
   try {
     const session = await getServerSession()
@@ -50,27 +75,27 @@ export async function GET() {
       }),
       prisma.asset.findMany({
         where: { type: "DECK", publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
       }),
       prisma.asset.findMany({
         where: { type: "VIDEO", publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
       }),
       prisma.asset.findMany({
         where: { type: "CAMPAIGN", publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
       }),
       prisma.asset.findMany({
         where: { type: "ASSET", publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
       }),
       prisma.docsUpdate.findMany({
         where: { publishedAt: { not: null } },
-        orderBy: { publishedAt: "desc" },
+        orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 8,
       }),
       prisma.asset.findMany({
@@ -104,26 +129,32 @@ export async function GET() {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 10)
 
+    // Process pins (filter expired, re-sort)
+    const processedDecks = processAssetPins(latestDecks)
+    const processedVideos = processAssetPins(latestVideos)
+    const processedCampaigns = processAssetPins(latestCampaigns)
+    const processedAssets = processAssetPins(latestAssets)
+
     // Generate presigned URLs for all assets (and YouTube thumbnails for videos)
     const [decks, videos, campaigns, assets, recent] = await Promise.all([
-      Promise.all(latestDecks.map(async (a) => ({
+      Promise.all(processedDecks.map(async (a) => ({
         ...a,
         thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
-      Promise.all(latestVideos.map(async (a) => ({
+      Promise.all(processedVideos.map(async (a) => ({
         ...a,
         thumbnailUrl: a.thumbnailUrl
           ? await getPresignedUrlIfNeeded(a.thumbnailUrl)
           : getYouTubeThumbnail(a.externalLink),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
-      Promise.all(latestCampaigns.map(async (a) => ({
+      Promise.all(processedCampaigns.map(async (a) => ({
         ...a,
         thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
       }))),
-      Promise.all(latestAssets.map(async (a) => ({
+      Promise.all(processedAssets.map(async (a) => ({
         ...a,
         thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
         fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),

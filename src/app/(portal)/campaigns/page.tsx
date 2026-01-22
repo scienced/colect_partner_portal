@@ -6,8 +6,10 @@ import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
-import { Mail, ExternalLink, Target, Calendar, Download, Info } from "lucide-react"
+import { Mail, ExternalLink, Calendar } from "lucide-react"
 import { useCampaigns } from "@/lib/swr"
+import { cn, getDateStatus } from "@/lib/utils"
+import { PinnedBadge } from "@/components/portal/PinnedBadge"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import Image from "next/image"
 
@@ -137,7 +139,8 @@ function CampaignCard({
   onInfoClick: (campaign: any) => void
   onDownload: (campaign: any) => void
 }) {
-  const sentDate = campaign.sentAt
+  const dateStatus = getDateStatus(campaign.sentAt)
+  const formattedDate = campaign.sentAt
     ? new Date(campaign.sentAt).toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -146,7 +149,18 @@ function CampaignCard({
     : null
 
   return (
-    <Card hover padding="none" className="overflow-hidden flex flex-col group relative">
+    <Card
+      hover
+      padding="none"
+      className="overflow-hidden flex flex-col group relative cursor-pointer"
+      onClick={() => onInfoClick(campaign)}
+    >
+      {/* Pinned Badge */}
+      {campaign.isPinned && (
+        <div className="absolute top-2 left-2 z-10">
+          <PinnedBadge />
+        </div>
+      )}
       {/* Thumbnail */}
       <div className="aspect-[16/10] bg-gray-100 relative">
         {campaign.thumbnailUrl ? (
@@ -176,21 +190,20 @@ function CampaignCard({
           </p>
         )}
 
-        {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-gray-500">
-          {sentDate && (
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              <span>{sentDate}</span>
-            </div>
-          )}
-          {campaign.campaignGoal && (
-            <div className="flex items-center gap-1">
-              <Target className="w-4 h-4" />
-              <span className="truncate max-w-[150px]">{campaign.campaignGoal}</span>
-            </div>
-          )}
-        </div>
+        {/* Date Pill */}
+        {formattedDate && dateStatus && (
+          <div className="mt-3">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white",
+                dateStatus === "past" ? "bg-gray-700" : "bg-primary"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              {dateStatus === "past" ? "Sent" : "Scheduled"}: {formattedDate}
+            </span>
+          </div>
+        )}
 
         {/* Languages */}
         {campaign.language?.length > 0 && (
@@ -211,7 +224,10 @@ function CampaignCard({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              onClick={() => onDownload(campaign)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDownload(campaign)
+              }}
             >
               <Mail className="w-4 h-4" />
               View Email
@@ -223,6 +239,7 @@ function CampaignCard({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              onClick={(e) => e.stopPropagation()}
             >
               <ExternalLink className="w-4 h-4" />
               View Campaign
@@ -230,14 +247,6 @@ function CampaignCard({
           )}
         </div>
       </div>
-      {/* Info Button */}
-      <button
-        onClick={() => onInfoClick(campaign)}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 text-gray-400 hover:text-primary hover:bg-white transition-colors opacity-0 group-hover:opacity-100 shadow-sm"
-        title="View details"
-      >
-        <Info className="w-4 h-4" />
-      </button>
     </Card>
   )
 }

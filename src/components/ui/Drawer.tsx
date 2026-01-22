@@ -72,7 +72,7 @@ export const Drawer = forwardRef<HTMLDivElement, DrawerProps>(
         {/* Overlay */}
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ease-out",
+            "fixed top-0 bottom-0 left-0 right-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ease-out",
             open ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
           onClick={closeOnOverlayClick ? onClose : undefined}
@@ -83,7 +83,7 @@ export const Drawer = forwardRef<HTMLDivElement, DrawerProps>(
         <div
           ref={ref}
           className={cn(
-            "fixed inset-y-0 right-0 z-50 flex flex-col bg-white shadow-2xl w-full",
+            "fixed top-0 bottom-0 right-0 z-50 flex flex-col bg-white shadow-2xl w-full",
             "transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
             sizeStyles[size],
             open ? "translate-x-0" : "translate-x-full",

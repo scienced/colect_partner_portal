@@ -25,6 +25,11 @@ export interface Asset {
   createdAt: string
   updatedAt: string
   publishedAt: string | null
+  // Pinning
+  isPinned?: boolean
+  pinnedAt?: string | null
+  pinExpiresAt?: string | null
+  pinOrder?: number
 }
 
 // Docs update matching Prisma schema
@@ -37,6 +42,11 @@ export interface DocsUpdate {
   createdAt: string
   updatedAt: string
   publishedAt: string | null
+  // Pinning
+  isPinned?: boolean
+  pinnedAt?: string | null
+  pinExpiresAt?: string | null
+  pinOrder?: number
 }
 
 // Search result categories

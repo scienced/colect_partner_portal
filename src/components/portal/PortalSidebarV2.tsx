@@ -341,11 +341,23 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
                         onClick={() => handleResultClick(result)}
                         className="w-full flex items-center gap-4 px-5 py-3 hover:bg-gray-50 text-left transition-colors"
                       >
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          {result.category === "asset" && <FileText className="w-5 h-5 text-gray-500" />}
-                          {result.category === "docs" && <FileText className="w-5 h-5 text-blue-500" />}
-                          {result.category === "product" && <Play className="w-5 h-5 text-green-500" />}
-                          {result.category === "team" && <Users className="w-5 h-5 text-purple-500" />}
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                          {result.thumbnailUrl ? (
+                            <Image
+                              src={result.thumbnailUrl}
+                              alt=""
+                              fill
+                              sizes="48px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <>
+                              {result.category === "asset" && <FileText className="w-5 h-5 text-gray-500" />}
+                              {result.category === "docs" && <FileText className="w-5 h-5 text-blue-500" />}
+                              {result.category === "product" && <Play className="w-5 h-5 text-green-500" />}
+                              {result.category === "team" && <Users className="w-5 h-5 text-purple-500" />}
+                            </>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-gray-900 font-medium truncate">{result.title}</p>

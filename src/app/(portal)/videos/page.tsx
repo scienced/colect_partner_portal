@@ -7,9 +7,10 @@ import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
-import { Play, ExternalLink, Info } from "lucide-react"
+import { Play, ExternalLink } from "lucide-react"
 import { useVideos } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import { PinnedBadge } from "@/components/portal/PinnedBadge"
 
 interface AssetInfo {
   id: string
@@ -125,66 +126,74 @@ export default function VideosPage() {
             const videoUrl = video.externalLink || video.fileUrl
 
             return (
-              <Card key={video.id} hover padding="none" className="overflow-hidden group relative">
-                <a
-                  href={videoUrl || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                  onClick={() => handleVideoClick(video)}
-                >
-                  <div className="relative aspect-video bg-gray-900">
-                    {thumbnailUrl ? (
-                      <Image
-                        src={thumbnailUrl}
-                        alt={video.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                        <Play className="w-12 h-12 text-gray-600" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity">
+              <Card
+                key={video.id}
+                hover
+                padding="none"
+                className="overflow-hidden group relative cursor-pointer"
+                onClick={() => handleInfoClick(video)}
+              >
+                {/* Pinned Badge */}
+                {video.isPinned && (
+                  <div className="absolute top-2 left-2 z-20">
+                    <PinnedBadge />
+                  </div>
+                )}
+                <div className="relative aspect-video bg-gray-900">
+                  {thumbnailUrl ? (
+                    <Image
+                      src={thumbnailUrl}
+                      alt={video.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                      <Play className="w-12 h-12 text-gray-600" />
+                    </div>
+                  )}
+                  {/* Play button overlay - clicking this opens video directly */}
+                  {videoUrl && (
+                    <a
+                      href={videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleVideoClick(video)
+                      }}
+                    >
                       <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
                         <Play className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" />
                       </div>
+                    </a>
+                  )}
+                  {video.externalLink && (
+                    <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" />
+                      {youtubeId ? "YouTube" : "External"}
                     </div>
-                    {video.externalLink && (
-                      <div className="absolute top-2 right-10 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" />
-                        {youtubeId ? "YouTube" : "External"}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-medium text-gray-900 line-clamp-1">{video.title}</h3>
-                    {video.description && (
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                        {video.description}
-                      </p>
-                    )}
-                    {video.language?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {video.language.map((l: string) => (
-                          <StatusBadge key={l} status="info">
-                            {l}
-                          </StatusBadge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </a>
-                {/* Info Button */}
-                <button
-                  onClick={() => handleInfoClick(video)}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-white/80 text-gray-400 hover:text-primary hover:bg-white transition-colors opacity-0 group-hover:opacity-100 shadow-sm z-10"
-                  title="View details"
-                >
-                  <Info className="w-4 h-4" />
-                </button>
+                  )}
+                </div>
+                <div className="p-4">
+                  <h3 className="font-medium text-gray-900 line-clamp-1">{video.title}</h3>
+                  {video.description && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                      {video.description}
+                    </p>
+                  )}
+                  {video.language?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {video.language.map((l: string) => (
+                        <StatusBadge key={l} status="info">
+                          {l}
+                        </StatusBadge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </Card>
             )
           })}
