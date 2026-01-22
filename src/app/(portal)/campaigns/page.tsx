@@ -49,7 +49,7 @@ export default function CampaignsPage() {
       category: "campaign",
       thumbnailUrl: campaign.thumbnailUrl,
       fileUrl: campaign.fileUrl,
-      externalLink: campaign.campaignLink,
+      externalLink: campaign.externalLink || campaign.campaignLink,
       language: campaign.language,
       persona: campaign.persona,
       campaignGoal: campaign.campaignGoal,
@@ -217,7 +217,7 @@ function CampaignCard({
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-3 mt-auto pt-4">
+        <div className="flex items-center gap-3 mt-auto pt-4 flex-wrap">
           {campaign.fileUrl && (
             <a
               href={campaign.fileUrl}
@@ -231,6 +231,18 @@ function CampaignCard({
             >
               <Mail className="w-4 h-4" />
               View Email
+            </a>
+          )}
+          {campaign.externalLink && (
+            <a
+              href={campaign.externalLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open Link
             </a>
           )}
           {campaign.campaignLink && (

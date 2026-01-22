@@ -192,10 +192,10 @@ export default function HomePage() {
     description: campaign.description,
     thumbnailUrl: campaign.thumbnailUrl,
     type: "CAMPAIGN",
-    href: campaign.fileUrl || campaign.campaignLink || "/campaigns",
-    external: !!(campaign.fileUrl || campaign.campaignLink),
+    href: campaign.fileUrl || campaign.externalLink || campaign.campaignLink || "/campaigns",
+    external: !!(campaign.fileUrl || campaign.externalLink || campaign.campaignLink),
     fileUrl: campaign.fileUrl,
-    externalLink: campaign.campaignLink,
+    externalLink: campaign.externalLink || campaign.campaignLink,
     // Don't set meta for campaigns - date is shown in the date pill
     category: "campaign" as const,
     language: campaign.language,
@@ -460,7 +460,7 @@ function getAssetHref(asset: { type?: string; fileUrl?: string | null; externalL
     case "VIDEO":
       return asset.externalLink || asset.fileUrl || "/videos"
     case "CAMPAIGN":
-      return asset.fileUrl || asset.campaignLink || "/campaigns"
+      return asset.fileUrl || asset.externalLink || asset.campaignLink || "/campaigns"
     case "ASSET":
       return asset.externalLink || asset.fileUrl || "/assets"
     case "DOCS":
@@ -477,7 +477,7 @@ function shouldOpenExternal(asset: { type?: string; fileUrl?: string | null; ext
     case "VIDEO":
       return !!(asset.externalLink || asset.fileUrl)
     case "CAMPAIGN":
-      return !!(asset.fileUrl || asset.campaignLink)
+      return !!(asset.fileUrl || asset.externalLink || asset.campaignLink)
     case "ASSET":
       return !!(asset.externalLink || asset.fileUrl)
     case "DOCS":

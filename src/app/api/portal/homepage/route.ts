@@ -266,7 +266,7 @@ async function getAssetHref(asset: { type: string; fileUrl: string | null; exter
     case "VIDEO":
       return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/videos"
     case "CAMPAIGN":
-      return await getPresignedUrlIfNeeded(asset.fileUrl) || asset.campaignLink || "/campaigns"
+      return await getPresignedUrlIfNeeded(asset.fileUrl) || asset.externalLink || asset.campaignLink || "/campaigns"
     case "ASSET":
       return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/assets"
     default:
@@ -281,7 +281,7 @@ function shouldOpenExternal(asset: { type: string; fileUrl: string | null; exter
     case "VIDEO":
       return !!(asset.externalLink || asset.fileUrl)
     case "CAMPAIGN":
-      return !!(asset.fileUrl || asset.campaignLink)
+      return !!(asset.fileUrl || asset.externalLink || asset.campaignLink)
     case "ASSET":
       return !!(asset.externalLink || asset.fileUrl)
     default:
