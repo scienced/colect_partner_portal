@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
-import { FileText, Download } from "lucide-react"
+import { FileText, Download, ExternalLink } from "lucide-react"
 import { useDecks } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
@@ -146,21 +146,35 @@ export default function DecksPage() {
                     ))}
                   </div>
                 )}
-                {deck.fileUrl && (
-                  <a
-                    href={deck.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDownload(deck)
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </a>
-                )}
+                <div className="flex items-center gap-4 mt-4 flex-wrap">
+                  {deck.fileUrl && (
+                    <a
+                      href={deck.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDownload(deck)
+                      }}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </a>
+                  )}
+                  {deck.externalLink && (
+                    <a
+                      href={deck.externalLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Slides
+                    </a>
+                  )}
+                </div>
               </div>
             </Card>
           ))}

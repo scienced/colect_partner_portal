@@ -190,25 +190,21 @@ function CampaignCard({
           </p>
         )}
 
-        {/* Date Pill */}
-        {formattedDate && dateStatus && (
-          <div className="mt-3">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white",
-                dateStatus === "past" ? "bg-gray-700" : "bg-primary"
-              )}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              {dateStatus === "past" ? "Sent" : "Scheduled"}: {formattedDate}
-            </span>
-          </div>
-        )}
-
-        {/* Languages */}
-        {campaign.language?.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {campaign.language.map((l: string) => (
+        {/* Date Pill & Languages */}
+        {((formattedDate && dateStatus) || campaign.language?.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            {formattedDate && dateStatus && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white",
+                  dateStatus === "past" ? "bg-gray-700" : "bg-primary"
+                )}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                {dateStatus === "past" ? "Sent" : "Scheduled"}: {formattedDate}
+              </span>
+            )}
+            {campaign.language?.map((l: string) => (
               <StatusBadge key={l} status="info">
                 {l}
               </StatusBadge>
