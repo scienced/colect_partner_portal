@@ -263,7 +263,6 @@ export default function HomePage() {
       language: item.language,
       persona: item.persona,
       campaignGoal: item.campaignGoal,
-      sentAt: item.sentAt,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       isPinned: item.isPinned,
