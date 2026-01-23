@@ -1,86 +1,41 @@
 "use client"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
+import { useMemo, useCallback } from "react"
 import Image from "next/image"
-import { useSearchParams, useRouter } from "next/navigation"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
+import { GridSkeleton } from "@/components/portal/GridSkeleton"
 import { FileText, Download, ExternalLink } from "lucide-react"
 import { useDecks } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
-
-interface AssetInfo {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  category?: string
-  thumbnailUrl?: string | null
-  fileUrl?: string | null
-  externalLink?: string | null
-  language?: string[]
-  persona?: string[]
-  campaignGoal?: string | null
-  sentAt?: string | null
-  createdAt: string
-  updatedAt: string
-}
+import type { AssetInfo } from "@/types"
 
 export default function DecksPage() {
   const { data, isLoading, error } = useDecks()
   const decks = useMemo(() => data?.assets || [], [data])
-  const searchParams = useSearchParams()
-  const router = useRouter()
   const { trackAssetDownload } = useAnalytics()
 
-  const [selectedAsset, setSelectedAsset] = useState<AssetInfo | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const transformDeck = useCallback((deck: any): AssetInfo => ({
+    id: deck.id,
+    title: deck.title,
+    description: deck.description,
+    type: "DECK",
+    category: "deck",
+    thumbnailUrl: deck.thumbnailUrl,
+    fileUrl: deck.fileUrl,
+    externalLink: deck.externalLink,
+    language: deck.language,
+    persona: deck.persona,
+    createdAt: deck.createdAt,
+    updatedAt: deck.updatedAt,
+  }), [])
 
-  const handleInfoClick = useCallback((deck: any) => {
-    const asset: AssetInfo = {
-      id: deck.id,
-      title: deck.title,
-      description: deck.description,
-      type: "DECK",
-      category: "deck",
-      thumbnailUrl: deck.thumbnailUrl,
-      fileUrl: deck.fileUrl,
-      externalLink: deck.externalLink,
-      language: deck.language,
-      persona: deck.persona,
-      createdAt: deck.createdAt,
-      updatedAt: deck.updatedAt,
-    }
-    setSelectedAsset(asset)
-    setDrawerOpen(true)
-    // Update URL for deep linking
-    const url = new URL(window.location.href)
-    url.searchParams.set("asset", deck.id)
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [router])
-
-  const handleDrawerClose = useCallback(() => {
-    setDrawerOpen(false)
-    setSelectedAsset(null)
-    // Remove asset param from URL
-    const url = new URL(window.location.href)
-    url.searchParams.delete("asset")
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [router])
-
-  // Handle deep linking via URL params
-  useEffect(() => {
-    const assetId = searchParams.get("asset")
-    if (assetId && decks.length > 0) {
-      const found = decks.find((deck: any) => deck.id === assetId)
-      if (found) {
-        handleInfoClick(found)
-      }
-    }
-  }, [searchParams, decks, handleInfoClick])
+  const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
+    useAssetDrawer(decks, transformDeck)
 
   const handleDownload = (deck: any) => {
     trackAssetDownload(deck.id, deck.title, "DECK")
@@ -94,7 +49,7 @@ export default function DecksPage() {
       />
 
       {isLoading ? (
-        <DecksLoading />
+        <GridSkeleton />
       ) : error ? (
         <Card padding="lg" className="text-center">
           <p className="text-red-500">Failed to load decks</p>
@@ -109,7 +64,6 @@ export default function DecksPage() {
               className="group relative cursor-pointer"
               onClick={() => handleInfoClick(deck)}
             >
-              {/* Pinned Badge */}
               {deck.isPinned && (
                 <div className="absolute top-2 left-2 z-10">
                   <PinnedBadge />
@@ -146,7 +100,7 @@ export default function DecksPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center gap-4 mt-4 flex-wrap">
+                <div className="flex items-center gap-4 mt-auto pt-4 flex-wrap">
                   {deck.fileUrl && (
                     <a
                       href={deck.fileUrl}
@@ -186,28 +140,11 @@ export default function DecksPage() {
         </Card>
       )}
 
-      {/* Asset Info Drawer */}
       <AssetInfoDrawer
         asset={selectedAsset}
         open={drawerOpen}
         onClose={handleDrawerClose}
       />
-    </div>
-  )
-}
-
-function DecksLoading() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[...Array(6)].map((_, i) => (
-        <Card key={i} padding="md">
-          <div className="animate-pulse">
-            <div className="aspect-video bg-gray-200 rounded-md mb-4" />
-            <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-full" />
-          </div>
-        </Card>
-      ))}
     </div>
   )
 }

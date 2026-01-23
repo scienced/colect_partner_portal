@@ -86,22 +86,26 @@ export interface FeaturedItem {
   asset: AssetDrawerData | null
 }
 
-// Asset data structure used in the drawer component
-export interface AssetDrawerData {
+// Asset info used in the drawer and section pages
+export interface AssetInfo {
   id: string
-  type: AssetType | "DOCS"
   title: string
-  description: string | null
-  thumbnailUrl: string | null
-  fileUrl: string | null
-  externalLink: string | null
-  language: string[]
-  persona: string[]
-  campaignGoal: string | null
-  sentAt: string | null
+  description?: string | null
+  type: string
+  category?: string
+  thumbnailUrl?: string | null
+  fileUrl?: string | null
+  externalLink?: string | null
+  language?: string[]
+  persona?: string[]
+  campaignGoal?: string | null
+  sentAt?: string | null
   createdAt: string
   updatedAt: string
 }
+
+// Asset data structure used in the drawer component (alias for backwards compat)
+export type AssetDrawerData = AssetInfo
 
 // Homepage API response
 export interface HomepageData {

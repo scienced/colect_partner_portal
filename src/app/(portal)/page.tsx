@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Sparkles, FileText, Play, Mail, ExternalLink, BookOpen, Star, Info } from "lucide-react"
 import { useHomepageData } from "@/lib/swr"
 import type { Asset, DocsUpdate, FeaturedItem } from "@/types"
+import { getYouTubeThumbnail } from "@/lib/utils"
 
 // Category colors for featured items
 const categoryColors: Record<string, string> = {
@@ -438,20 +439,6 @@ export default function HomePage() {
 }
 
 // Helper functions
-function getYouTubeThumbnail(url: string | null | undefined): string | undefined {
-  if (!url) return undefined
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
-  ]
-  for (const pattern of patterns) {
-    const match = url.match(pattern)
-    if (match) {
-      return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
-    }
-  }
-  return undefined
-}
-
 function getAssetHref(asset: { type?: string; fileUrl?: string | null; externalLink?: string | null; campaignLink?: string | null }): string {
   switch (asset.type) {
     case "DECK":

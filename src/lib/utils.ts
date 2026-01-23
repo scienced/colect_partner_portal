@@ -47,3 +47,27 @@ export function getDateStatus(dateString: string | null | undefined): "past" | "
   const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   return dateOnly < nowOnly ? "past" : "future"
 }
+
+/**
+ * Extract a YouTube video ID from a URL or standalone ID string.
+ */
+export function getYouTubeId(url: string | null | undefined): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+/**
+ * Get a YouTube thumbnail URL from a video URL or ID.
+ */
+export function getYouTubeThumbnail(url: string | null | undefined): string | undefined {
+  const id = getYouTubeId(url)
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : undefined
+}

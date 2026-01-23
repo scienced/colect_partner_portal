@@ -1,85 +1,40 @@
 "use client"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useMemo, useCallback } from "react"
 import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
+import { GridSkeleton } from "@/components/portal/GridSkeleton"
 import { FolderOpen, ExternalLink, Download } from "lucide-react"
 import { useGeneralAssets } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
-
-interface AssetInfo {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  category?: string
-  thumbnailUrl?: string | null
-  fileUrl?: string | null
-  externalLink?: string | null
-  language?: string[]
-  persona?: string[]
-  campaignGoal?: string | null
-  sentAt?: string | null
-  createdAt: string
-  updatedAt: string
-}
+import type { AssetInfo } from "@/types"
 
 export default function AssetsPage() {
   const { data, isLoading, error } = useGeneralAssets()
   const assets = useMemo(() => data?.assets || [], [data])
-  const searchParams = useSearchParams()
-  const router = useRouter()
   const { trackAssetDownload, trackAssetClick } = useAnalytics()
 
-  const [selectedAsset, setSelectedAsset] = useState<AssetInfo | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const transformAsset = useCallback((asset: any): AssetInfo => ({
+    id: asset.id,
+    title: asset.title,
+    description: asset.description,
+    type: "ASSET",
+    category: "asset",
+    thumbnailUrl: asset.thumbnailUrl,
+    fileUrl: asset.fileUrl,
+    externalLink: asset.externalLink,
+    language: asset.language,
+    persona: asset.persona,
+    createdAt: asset.createdAt,
+    updatedAt: asset.updatedAt,
+  }), [])
 
-  const handleInfoClick = useCallback((asset: any) => {
-    const assetInfo: AssetInfo = {
-      id: asset.id,
-      title: asset.title,
-      description: asset.description,
-      type: "ASSET",
-      category: "asset",
-      thumbnailUrl: asset.thumbnailUrl,
-      fileUrl: asset.fileUrl,
-      externalLink: asset.externalLink,
-      language: asset.language,
-      persona: asset.persona,
-      createdAt: asset.createdAt,
-      updatedAt: asset.updatedAt,
-    }
-    setSelectedAsset(assetInfo)
-    setDrawerOpen(true)
-    // Update URL for deep linking
-    const url = new URL(window.location.href)
-    url.searchParams.set("asset", asset.id)
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [router])
-
-  const handleDrawerClose = useCallback(() => {
-    setDrawerOpen(false)
-    setSelectedAsset(null)
-    // Remove asset param from URL
-    const url = new URL(window.location.href)
-    url.searchParams.delete("asset")
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [router])
-
-  // Handle deep linking via URL params
-  useEffect(() => {
-    const assetId = searchParams.get("asset")
-    if (assetId && assets.length > 0) {
-      const found = assets.find((asset: any) => asset.id === assetId)
-      if (found) {
-        handleInfoClick(found)
-      }
-    }
-  }, [searchParams, assets, handleInfoClick])
+  const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
+    useAssetDrawer(assets, transformAsset)
 
   const handleDownload = (asset: any) => {
     trackAssetDownload(asset.id, asset.title, "ASSET")
@@ -97,7 +52,7 @@ export default function AssetsPage() {
       />
 
       {isLoading ? (
-        <AssetsLoading />
+        <GridSkeleton />
       ) : error ? (
         <Card padding="lg" className="text-center">
           <p className="text-red-500">Failed to load assets</p>
@@ -112,7 +67,6 @@ export default function AssetsPage() {
               className="group relative cursor-pointer"
               onClick={() => handleInfoClick(asset)}
             >
-              {/* Pinned Badge */}
               {asset.isPinned && (
                 <div className="absolute top-2 left-2 z-10">
                   <PinnedBadge />
@@ -183,28 +137,11 @@ export default function AssetsPage() {
         </Card>
       )}
 
-      {/* Asset Info Drawer */}
       <AssetInfoDrawer
         asset={selectedAsset}
         open={drawerOpen}
         onClose={handleDrawerClose}
       />
-    </div>
-  )
-}
-
-function AssetsLoading() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[...Array(6)].map((_, i) => (
-        <Card key={i} padding="md">
-          <div className="animate-pulse">
-            <div className="aspect-video bg-gray-200 rounded-md mb-4" />
-            <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-full" />
-          </div>
-        </Card>
-      ))}
     </div>
   )
 }

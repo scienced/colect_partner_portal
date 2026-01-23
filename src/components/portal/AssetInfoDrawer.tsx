@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
+import type { AssetInfo } from "@/types"
 
 // Helper to extract file extension from URL
 function getFileExtension(url: string | null | undefined): string | null {
@@ -40,23 +41,6 @@ function getFileExtension(url: string | null | undefined): string | null {
     }
   }
   return null
-}
-
-interface AssetInfo {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  category?: string
-  thumbnailUrl?: string | null
-  fileUrl?: string | null
-  externalLink?: string | null
-  language?: string[]
-  persona?: string[]
-  campaignGoal?: string | null
-  sentAt?: string | null
-  createdAt: string
-  updatedAt: string
 }
 
 interface AssetInfoDrawerProps {
