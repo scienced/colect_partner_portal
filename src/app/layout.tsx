@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { SuperTokensProvider } from '@/components/auth/SuperTokensProvider'
+import { SWRProvider } from '@/components/providers/SWRProvider'
 import { NavigationProgress } from '@/components/ui/NavigationProgress'
 import { Suspense } from 'react'
 
@@ -25,7 +26,9 @@ export default function RootLayout({
           <NavigationProgress />
         </Suspense>
         <SuperTokensProvider>
-          {children}
+          <SWRProvider>
+            {children}
+          </SWRProvider>
         </SuperTokensProvider>
       </body>
     </html>
