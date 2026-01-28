@@ -173,7 +173,7 @@ export function TeamMembersList({ initialMembers }: TeamMembersListProps) {
         type="email"
         value={formData.email}
         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-        placeholder="name@colect.io"
+        placeholder="name@yourcompany.com"
       />
 
       <Input

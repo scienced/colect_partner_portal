@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
-import { getPresignedUrlIfNeeded } from "@/lib/s3"
+import { getPresignedUrls } from "@/lib/s3"
 
 // Helper to generate YouTube thumbnail from URL
 function getYouTubeThumbnail(url: string | null): string | null {
@@ -68,7 +68,15 @@ export async function GET() {
         orderBy: { displayOrder: "asc" },
         take: 5,
         include: {
-          asset: true,
+          asset: {
+            select: {
+              id: true, type: true, title: true, description: true,
+              fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+              language: true, persona: true, campaignGoal: true,
+              campaignLink: true, sentAt: true,
+              createdAt: true, updatedAt: true,
+            },
+          },
           docsUpdate: true,
           productUpdate: true,
         },
@@ -77,21 +85,49 @@ export async function GET() {
         where: { type: "DECK", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
+        select: {
+          id: true, type: true, title: true, description: true,
+          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+          language: true, persona: true, campaignGoal: true, sentAt: true,
+          createdAt: true, updatedAt: true, publishedAt: true,
+          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
+        },
       }),
       prisma.asset.findMany({
         where: { type: "VIDEO", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
+        select: {
+          id: true, type: true, title: true, description: true,
+          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+          language: true, persona: true, campaignGoal: true, sentAt: true,
+          createdAt: true, updatedAt: true, publishedAt: true,
+          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
+        },
       }),
       prisma.asset.findMany({
         where: { type: "CAMPAIGN", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
+        select: {
+          id: true, type: true, title: true, description: true,
+          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+          language: true, persona: true, campaignGoal: true, sentAt: true,
+          createdAt: true, updatedAt: true, publishedAt: true,
+          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
+        },
       }),
       prisma.asset.findMany({
         where: { type: "ASSET", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
+        select: {
+          id: true, type: true, title: true, description: true,
+          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+          language: true, persona: true, campaignGoal: true, sentAt: true,
+          createdAt: true, updatedAt: true, publishedAt: true,
+          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
+        },
       }),
       prisma.docsUpdate.findMany({
         where: { publishedAt: { not: null } },
@@ -102,6 +138,13 @@ export async function GET() {
         where: { publishedAt: { not: null } },
         orderBy: { updatedAt: "desc" },
         take: 10,
+        select: {
+          id: true, type: true, title: true, description: true,
+          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
+          language: true, persona: true, campaignGoal: true, sentAt: true,
+          createdAt: true, updatedAt: true, publishedAt: true,
+          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
+        },
       }),
       prisma.docsUpdate.findMany({
         where: { publishedAt: { not: null } },
@@ -135,68 +178,83 @@ export async function GET() {
     const processedCampaigns = processAssetPins(latestCampaigns)
     const processedAssets = processAssetPins(latestAssets)
 
-    // Generate presigned URLs for all assets (and YouTube thumbnails for videos)
-    const [decks, videos, campaigns, assets, recent] = await Promise.all([
-      Promise.all(processedDecks.map(async (a) => ({
-        ...a,
-        thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
-      }))),
-      Promise.all(processedVideos.map(async (a) => ({
-        ...a,
-        thumbnailUrl: a.thumbnailUrl
-          ? await getPresignedUrlIfNeeded(a.thumbnailUrl)
-          : getYouTubeThumbnail(a.externalLink),
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
-      }))),
-      Promise.all(processedCampaigns.map(async (a) => ({
-        ...a,
-        thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
-      }))),
-      Promise.all(processedAssets.map(async (a) => ({
-        ...a,
-        thumbnailUrl: await getPresignedUrlIfNeeded(a.thumbnailUrl),
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
-      }))),
-      Promise.all(recentlyUpdated.map(async (item) => ({
-        ...item,
-        thumbnailUrl: item.thumbnailUrl
-          ? await getPresignedUrlIfNeeded(item.thumbnailUrl)
-          : (item._type === "asset" && (item as any).type === "VIDEO"
-              ? getYouTubeThumbnail((item as any).externalLink)
-              : null),
-        fileUrl: item.fileUrl ? await getPresignedUrlIfNeeded(item.fileUrl) : null,
-      }))),
+    // Batch presign all S3 URLs at once (instead of per-item calls)
+    const allItems = [...processedDecks, ...processedVideos, ...processedCampaigns, ...processedAssets, ...recentlyUpdated]
+    const allThumbnailUrls = allItems.map(a => a.thumbnailUrl)
+    const allFileUrls = allItems.map(a => a.fileUrl)
+    const [presignedThumbnails, presignedFiles] = await Promise.all([
+      getPresignedUrls(allThumbnailUrls),
+      getPresignedUrls(allFileUrls),
     ])
 
-    // Process featured content
-    const featured = await Promise.all(featuredContent.map(async (item) => {
+    // Split presigned URLs back to their respective arrays
+    let offset = 0
+    const decks = processedDecks.map((a, i) => ({
+      ...a,
+      thumbnailUrl: presignedThumbnails[offset + i],
+      fileUrl: presignedFiles[offset + i],
+    }))
+    offset += processedDecks.length
+    const videos = processedVideos.map((a, i) => ({
+      ...a,
+      thumbnailUrl: presignedThumbnails[offset + i] ?? getYouTubeThumbnail(a.externalLink),
+      fileUrl: presignedFiles[offset + i],
+    }))
+    offset += processedVideos.length
+    const campaigns = processedCampaigns.map((a, i) => ({
+      ...a,
+      thumbnailUrl: presignedThumbnails[offset + i],
+      fileUrl: presignedFiles[offset + i],
+    }))
+    offset += processedCampaigns.length
+    const assets = processedAssets.map((a, i) => ({
+      ...a,
+      thumbnailUrl: presignedThumbnails[offset + i],
+      fileUrl: presignedFiles[offset + i],
+    }))
+    offset += processedAssets.length
+    const recent = recentlyUpdated.map((item, i) => ({
+      ...item,
+      thumbnailUrl: presignedThumbnails[offset + i]
+        ?? (item._type === "asset" && (item as any).type === "VIDEO"
+            ? getYouTubeThumbnail((item as any).externalLink)
+            : null),
+      fileUrl: presignedFiles[offset + i],
+    }))
+
+    // Batch presign featured content URLs
+    const featuredThumbnailUrls = featuredContent.map(item => item.asset?.thumbnailUrl ?? null)
+    const featuredFileUrls = featuredContent.map(item => item.asset?.fileUrl ?? null)
+    const [featuredPresignedThumbs, featuredPresignedFiles] = await Promise.all([
+      getPresignedUrls(featuredThumbnailUrls),
+      getPresignedUrls(featuredFileUrls),
+    ])
+
+    const featured = featuredContent.map((item, i) => {
       const asset = item.asset
       const docsUpdate = item.docsUpdate
 
       if (asset) {
-        // For videos without a thumbnail, generate YouTube thumbnail from external link
-        const thumbnailUrl = asset.thumbnailUrl
-          ? await getPresignedUrlIfNeeded(asset.thumbnailUrl)
-          : (asset.type === "VIDEO" ? getYouTubeThumbnail(asset.externalLink) : null)
+        const thumbnailUrl = featuredPresignedThumbs[i]
+          ?? (asset.type === "VIDEO" ? getYouTubeThumbnail(asset.externalLink) : null)
+        const fileUrl = featuredPresignedFiles[i]
 
         return {
           id: item.id,
           title: item.title || asset.title,
           description: item.description || asset.description,
           thumbnailUrl,
-          href: await getAssetHref(asset),
+          href: getAssetHref(asset, fileUrl),
           external: shouldOpenExternal(asset),
           category: asset.type.toLowerCase(),
-          // Include full asset data for drawer
           asset: {
             id: asset.id,
             type: asset.type,
             title: asset.title,
             description: asset.description,
             thumbnailUrl,
-            fileUrl: await getPresignedUrlIfNeeded(asset.fileUrl),
+            blurDataUrl: asset.blurDataUrl,
+            fileUrl,
             externalLink: asset.externalLink,
             language: asset.language,
             persona: asset.persona,
@@ -215,7 +273,6 @@ export async function GET() {
           href: docsUpdate.deepLink,
           external: true,
           category: "docs",
-          // Include docs data for drawer
           asset: {
             id: docsUpdate.id,
             type: "DOCS",
@@ -241,7 +298,7 @@ export async function GET() {
         category: "deck",
         asset: null,
       }
-    }))
+    })
 
     return NextResponse.json({
       featured,
@@ -259,16 +316,16 @@ export async function GET() {
 }
 
 // Helper functions
-async function getAssetHref(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): Promise<string> {
+function getAssetHref(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }, presignedFileUrl: string | null): string {
   switch (asset.type) {
     case "DECK":
-      return await getPresignedUrlIfNeeded(asset.fileUrl) || "/decks"
+      return presignedFileUrl || "/decks"
     case "VIDEO":
-      return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/videos"
+      return asset.externalLink || presignedFileUrl || "/videos"
     case "CAMPAIGN":
-      return await getPresignedUrlIfNeeded(asset.fileUrl) || asset.externalLink || asset.campaignLink || "/campaigns"
+      return presignedFileUrl || asset.externalLink || asset.campaignLink || "/campaigns"
     case "ASSET":
-      return asset.externalLink || await getPresignedUrlIfNeeded(asset.fileUrl) || "/assets"
+      return asset.externalLink || presignedFileUrl || "/assets"
     default:
       return "/"
   }

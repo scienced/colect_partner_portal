@@ -7,6 +7,7 @@ import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
+import { siteConfig } from "@/config/site"
 
 type VerifyState = "verifying" | "success" | "error"
 
@@ -55,8 +56,8 @@ function VerifyContent() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">Colect</h1>
-          <p className="text-gray-500 mt-1">Partner Portal</p>
+          <h1 className="text-3xl font-bold text-primary">{siteConfig.name}</h1>
+          <p className="text-gray-500 mt-1">{siteConfig.title}</p>
         </div>
 
         <Card padding="lg" className="shadow-lg">

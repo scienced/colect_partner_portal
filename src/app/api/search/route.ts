@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/supertokens/session"
 import { trackSearchQuery } from "@/lib/analytics"
-import { getPresignedUrlIfNeeded } from "@/lib/s3"
+import { getPresignedUrls } from "@/lib/s3"
 
 // Helper to generate YouTube thumbnail from URL
 function getYouTubeThumbnail(url: string | null): string | null {
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
           type: true,
           description: true,
           thumbnailUrl: true,
+          blurDataUrl: true,
           fileUrl: true,
           externalLink: true,
           language: true,
@@ -130,12 +131,18 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Format results with categories (presign S3 URLs)
-    const assetResults = await Promise.all(assets.map(async (a) => {
-      // Generate thumbnail: presigned S3 URL or YouTube thumbnail for videos
-      const thumbnailUrl = a.thumbnailUrl
-        ? await getPresignedUrlIfNeeded(a.thumbnailUrl)
-        : (a.type === "VIDEO" ? getYouTubeThumbnail(a.externalLink) : null)
+    // Batch presign all S3 URLs at once
+    const thumbnailUrls = assets.map(a => a.thumbnailUrl)
+    const fileUrls = assets.map(a => a.fileUrl)
+    const [presignedThumbnails, presignedFiles] = await Promise.all([
+      getPresignedUrls(thumbnailUrls),
+      getPresignedUrls(fileUrls),
+    ])
+
+    // Format results with categories
+    const assetResults = assets.map((a, i) => {
+      const thumbnailUrl = presignedThumbnails[i]
+        ?? (a.type === "VIDEO" ? getYouTubeThumbnail(a.externalLink) : null)
 
       return {
         id: a.id,
@@ -147,7 +154,8 @@ export async function GET(request: NextRequest) {
         // Full asset data for drawer
         description: a.description,
         thumbnailUrl,
-        fileUrl: await getPresignedUrlIfNeeded(a.fileUrl),
+        blurDataUrl: a.blurDataUrl,
+        fileUrl: presignedFiles[i],
         externalLink: a.externalLink,
         language: a.language,
         persona: a.persona,
@@ -156,7 +164,7 @@ export async function GET(request: NextRequest) {
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
       }
-    }))
+    })
 
     const results = [
       ...assetResults,

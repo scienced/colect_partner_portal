@@ -125,6 +125,9 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
                 sizes="(max-width: 768px) 100vw, 500px"
                 className="object-cover"
                 priority
+                placeholder={asset.blurDataUrl ? "blur" : undefined}
+                blurDataURL={asset.blurDataUrl || undefined}
+                unoptimized
               />
             </div>
           ) : (

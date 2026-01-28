@@ -156,6 +156,7 @@ export default function HomePage() {
     title: deck.title,
     description: deck.description,
     thumbnailUrl: deck.thumbnailUrl,
+    blurDataUrl: deck.blurDataUrl,
     type: "DECK",
     href: deck.fileUrl || "/decks",
     external: !!deck.fileUrl,
@@ -174,6 +175,7 @@ export default function HomePage() {
     title: video.title,
     description: video.description,
     thumbnailUrl: video.thumbnailUrl || getYouTubeThumbnail(video.externalLink),
+    blurDataUrl: video.blurDataUrl,
     type: "VIDEO",
     href: video.externalLink || video.fileUrl || "/videos",
     external: true,
@@ -192,6 +194,7 @@ export default function HomePage() {
     title: campaign.title,
     description: campaign.description,
     thumbnailUrl: campaign.thumbnailUrl,
+    blurDataUrl: campaign.blurDataUrl,
     type: "CAMPAIGN",
     href: campaign.fileUrl || campaign.externalLink || campaign.campaignLink || "/campaigns",
     external: !!(campaign.fileUrl || campaign.externalLink || campaign.campaignLink),
@@ -213,6 +216,7 @@ export default function HomePage() {
     title: asset.title,
     description: asset.description,
     thumbnailUrl: asset.thumbnailUrl,
+    blurDataUrl: asset.blurDataUrl,
     type: "ASSET",
     href: asset.externalLink || asset.fileUrl || "/assets",
     external: !!(asset.externalLink || asset.fileUrl),
@@ -253,6 +257,7 @@ export default function HomePage() {
       title: item.title,
       description: item.description,
       thumbnailUrl,
+      blurDataUrl: item.blurDataUrl,
       type: item.type,
       href: getAssetHref(item),
       external: shouldOpenExternal(item),
@@ -300,6 +305,9 @@ export default function HomePage() {
                           fill
                           sizes="96px"
                           className="object-cover"
+                          placeholder={item.asset?.blurDataUrl ? "blur" : undefined}
+                          blurDataURL={item.asset?.blurDataUrl || undefined}
+                          unoptimized
                         />
                       ) : (
                         categoryIcons[item.category] || (

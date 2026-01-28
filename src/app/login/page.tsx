@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createCode } from "supertokens-web-js/recipe/passwordless"
 import Session from "supertokens-web-js/recipe/session"
@@ -10,8 +9,34 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card } from "@/components/ui/Card"
 import { Mail, ArrowRight, CheckCircle, Loader2 } from "lucide-react"
+import { siteConfig } from "@/config/site"
 
-type LoginState = "email" | "sent" | "verifying" | "error"
+type LoginState = "email" | "sent" | "error"
+
+/**
+ * Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative URLs (starting with /) that don't redirect to external sites.
+ */
+function getSafeRedirectUrl(redirect: string | null): string {
+  if (!redirect) return "/"
+
+  // Must start with / (relative URL)
+  if (!redirect.startsWith("/")) return "/"
+
+  // Block protocol-relative URLs (//example.com)
+  if (redirect.startsWith("//")) return "/"
+
+  // Block URLs with encoded characters that could bypass checks
+  try {
+    const decoded = decodeURIComponent(redirect)
+    if (decoded.startsWith("//") || decoded.includes("://")) return "/"
+  } catch {
+    // Invalid encoding, reject
+    return "/"
+  }
+
+  return redirect
+}
 
 function LoginContent() {
   const router = useRouter()
@@ -31,7 +56,7 @@ function LoginContent() {
         const sessionExists = await Session.doesSessionExist()
         if (sessionExists) {
           // User is already logged in, redirect to home or the intended destination
-          const redirectTo = searchParams.get("redirect") || "/"
+          const redirectTo = getSafeRedirectUrl(searchParams.get("redirect"))
           router.replace(redirectTo)
           return
         }
@@ -89,18 +114,21 @@ function LoginContent() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <Image
-              src="/colect-logo.png"
-              alt="Colect"
-              width={48}
-              height={48}
-              className="rounded-xl"
-              priority
-            />
-            <h1 className="text-2xl font-bold text-gray-900">Colect</h1>
+            {siteConfig.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={siteConfig.logoUrl}
+                alt={siteConfig.name}
+                width={siteConfig.logoWidth}
+                height={siteConfig.logoHeight}
+                className="object-contain"
+              />
+            ) : (
+              <h1 className="text-2xl font-bold text-gray-900">{siteConfig.name}</h1>
+            )}
           </div>
           <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-primary/10 text-primary">
-            Partner Portal
+            {siteConfig.title}
           </span>
         </div>
 
@@ -171,23 +199,13 @@ function LoginContent() {
                 Use a different email
               </Button>
             </div>
-          ) : state === "verifying" ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900">
-                Verifying...
-              </h2>
-              <p className="text-gray-600 mt-2">
-                Please wait while we sign you in.
-              </p>
-            </div>
           ) : null}
         </Card>
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Need help?{" "}
           <a
-            href="mailto:support@colect.com"
+            href={`mailto:${siteConfig.supportEmail}`}
             className="text-primary hover:underline"
           >
             Contact support

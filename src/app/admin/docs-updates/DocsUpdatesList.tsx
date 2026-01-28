@@ -153,7 +153,7 @@ export function DocsUpdatesList({ initialDocs }: DocsUpdatesListProps) {
         label="Documentation Link"
         value={formData.deepLink}
         onChange={(e) => setFormData({ ...formData, deepLink: e.target.value })}
-        placeholder="https://docs.colect.io/..."
+        placeholder="https://docs.example.com/..."
         required
       />
 

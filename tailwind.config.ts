@@ -9,19 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          DEFAULT: '#ef556d',
-          50: '#fef2f3',
-          100: '#fee2e5',
-          200: '#fecacf',
-          300: '#fca5ae',
-          400: '#f97080',
-          500: '#ef556d',
-          600: '#dc2c4a',
-          700: '#b9203c',
-          800: '#9a1e38',
-          900: '#821e35',
-        },
+        // Primary color uses CSS variable for runtime customization
+        // Set via NEXT_PUBLIC_PRIMARY_COLOR env var or in src/config/site.ts
+        primary: 'rgb(var(--color-primary-rgb) / <alpha-value>)',
       },
     },
   },

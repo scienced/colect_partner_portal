@@ -11,10 +11,7 @@ const nextConfig = {
   // Image optimization
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'colect-partner-portal.s3.eu-west-1.amazonaws.com',
-      },
+      // AWS S3 buckets
       {
         protocol: 'https',
         hostname: '*.s3.*.amazonaws.com',
@@ -23,13 +20,25 @@ const nextConfig = {
         protocol: 'https',
         hostname: 's3.*.amazonaws.com',
       },
+      // YouTube thumbnails
       {
         protocol: 'https',
         hostname: 'img.youtube.com',
       },
+      // LinkedIn profile photos
       {
         protocol: 'https',
         hostname: 'media.licdn.com',
+      },
+      // Cloudinary (for logo hosting)
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      // Imgur (alternative logo hosting)
+      {
+        protocol: 'https',
+        hostname: 'i.imgur.com',
       },
     ],
     // Modern image formats for better compression

@@ -79,6 +79,7 @@ model Asset {
   // File information
   fileUrl      String?
   thumbnailUrl String?
+  blurDataUrl  String?  // Tiny base64 blur placeholder for image loading
   fileType     String?
   fileSize     Int?
 

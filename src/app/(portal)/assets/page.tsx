@@ -81,6 +81,9 @@ export default function AssetsPage() {
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover"
+                      placeholder={asset.blurDataUrl ? "blur" : undefined}
+                      blurDataURL={asset.blurDataUrl || undefined}
+                      unoptimized
                     />
                   </div>
                 ) : (

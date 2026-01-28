@@ -13,6 +13,7 @@ const AssetSchema = z.object({
   description: z.string().optional(),
   fileUrl: z.string().optional(),
   thumbnailUrl: z.string().optional(),
+  blurDataUrl: z.string().optional(),
   fileType: z.string().optional(),
   fileSize: z.number().optional(),
   region: z.array(z.string()).default([]),

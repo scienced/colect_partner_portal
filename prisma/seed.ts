@@ -6,11 +6,12 @@ async function main() {
   console.log('Seeding database...')
 
   // Create sample admin user
+  // IMPORTANT: Change this email to your actual admin email domain
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@colect.com' },
+    where: { email: 'admin@yourcompany.com' },
     update: {},
     create: {
-      email: 'admin@colect.com',
+      email: 'admin@yourcompany.com',
       name: 'Admin User',
       role: UserRole.ADMIN,
     },
@@ -33,8 +34,8 @@ async function main() {
   const deck1 = await prisma.asset.create({
     data: {
       type: AssetType.DECK,
-      title: 'Colect Platform Overview 2024',
-      description: 'Comprehensive overview of the Colect platform features and capabilities.',
+      title: 'Platform Overview 2024',
+      description: 'Comprehensive overview of the platform features and capabilities.',
       region: ['EMEA', 'Americas', 'APAC'],
       language: ['en'],
       persona: ['Sales', 'Executive'],
@@ -76,9 +77,9 @@ async function main() {
   const asset1 = await prisma.asset.create({
     data: {
       type: AssetType.ASSET,
-      title: 'Colect Logo Pack',
-      description: 'Official Colect logos in various formats (PNG, SVG, EPS).',
-      externalLink: 'https://brand.colect.com/logos',
+      title: 'Logo Pack',
+      description: 'Official logos in various formats (PNG, SVG, EPS).',
+      externalLink: 'https://example.com/brand/logos',
       region: ['Global'],
       language: ['en'],
       persona: ['Marketing'],
@@ -93,7 +94,7 @@ async function main() {
     data: {
       title: 'API v3.0 Documentation Released',
       summary: 'Complete overhaul of the API documentation with new examples and guides.',
-      deepLink: 'https://docs.colect.com/api/v3',
+      deepLink: 'https://docs.example.com/api/v3',
       category: 'API',
       publishedAt: new Date(),
     },
@@ -103,7 +104,7 @@ async function main() {
     data: {
       title: 'New Integration Tutorials',
       summary: 'Step-by-step tutorials for common integration scenarios.',
-      deepLink: 'https://docs.colect.com/tutorials',
+      deepLink: 'https://docs.example.com/tutorials',
       category: 'Integration',
       publishedAt: new Date(),
     },
@@ -140,7 +141,7 @@ async function main() {
         name: 'John Smith',
         role: 'Partner Success Manager',
         department: 'Partner Success',
-        email: 'john.smith@colect.com',
+        email: 'john.smith@yourcompany.com',
         displayOrder: 1,
       },
     }),
@@ -149,7 +150,7 @@ async function main() {
         name: 'Sarah Johnson',
         role: 'Technical Solutions Engineer',
         department: 'Solutions',
-        email: 'sarah.johnson@colect.com',
+        email: 'sarah.johnson@yourcompany.com',
         displayOrder: 2,
       },
     }),
@@ -158,7 +159,7 @@ async function main() {
         name: 'Michael Chen',
         role: 'Partner Marketing Manager',
         department: 'Marketing',
-        email: 'michael.chen@colect.com',
+        email: 'michael.chen@yourcompany.com',
         displayOrder: 3,
       },
     }),
@@ -220,10 +221,11 @@ async function main() {
   console.log('Initialized digest state')
 
   // Add allowed domains for partner access
+  // IMPORTANT: Update these domains to match your company and partner domains
   const allowedDomains = [
     {
-      domain: 'colect.com',
-      companyName: 'Colect (Internal)',
+      domain: 'yourcompany.com',
+      companyName: 'Your Company (Internal)',
       notes: 'Internal admin access - always allowed',
       isActive: true,
     },

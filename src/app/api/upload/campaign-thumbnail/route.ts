@@ -68,14 +68,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get a presigned URL so captureapi.net can access the file
+    // Get a presigned URL so Screenshotbase can access the file
     const key = getKeyFromUrl(htmlUrl)
     if (!key) {
       return NextResponse.json({ error: "Invalid S3 URL format" }, { status: 400 })
     }
     const screenshotUrl = await getPresignedDownloadUrl(key)
 
-    // Capture screenshot using captureapi.net with the presigned URL
+    // Capture screenshot using Screenshotbase with the presigned URL
     const screenshotResult = await captureScreenshot({
       url: screenshotUrl,
       width: 1200,

@@ -270,7 +270,7 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
             label="Documentation Link"
             value={docsFormData.deepLink}
             onChange={(e) => setDocsFormData({ ...docsFormData, deepLink: e.target.value })}
-            placeholder="https://docs.colect.io/..."
+            placeholder="https://docs.example.com/..."
             required
           />
 

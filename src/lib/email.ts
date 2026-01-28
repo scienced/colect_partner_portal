@@ -1,4 +1,5 @@
 import * as postmark from "postmark"
+import { siteConfig, getSenderEmail, getFullTitle } from "@/config/site"
 
 // Lazy initialization to avoid issues during build
 let _client: postmark.ServerClient | null = null
@@ -14,7 +15,7 @@ function getClient(): postmark.ServerClient {
   return _client
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "portal@colect.com"
+const FROM_EMAIL = getSenderEmail()
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
 export interface DigestContent {
@@ -84,8 +85,8 @@ function generateDigestHtml(name: string, content: DigestContent): string {
 </head>
 <body>
   <div class="header">
-    <div class="logo">Colect</div>
-    <h1>Weekly Partner Portal Update</h1>
+    <div class="logo">${siteConfig.name}</div>
+    <h1>Weekly ${siteConfig.title} Update</h1>
     <p>Hi ${name}, here's what's new this week!</p>
   </div>
 `
@@ -138,7 +139,7 @@ function generateDigestHtml(name: string, content: DigestContent): string {
   </div>
 
   <div class="footer">
-    <p>Colect Partner Portal</p>
+    <p>${getFullTitle()}</p>
     <p>You received this email because you're a registered partner.</p>
   </div>
 </body>
@@ -149,7 +150,7 @@ function generateDigestHtml(name: string, content: DigestContent): string {
 }
 
 function generateDigestText(name: string, content: DigestContent): string {
-  let text = `Colect Partner Portal - Weekly Update\n\n`
+  let text = `${getFullTitle()} - Weekly Update\n\n`
   text += `Hi ${name},\n\n`
   text += `Here's what's new this week:\n\n`
 
@@ -182,7 +183,7 @@ function generateDigestText(name: string, content: DigestContent): string {
   }
 
   text += `\nVisit the portal: ${APP_URL}\n\n`
-  text += `---\nColect Partner Portal\n`
+  text += `---\n${getFullTitle()}\n`
 
   return text
 }

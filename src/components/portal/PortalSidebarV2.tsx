@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import Session from "supertokens-web-js/recipe/session"
 import type { SearchResult, AssetDrawerData } from "@/types"
+import { siteConfig } from "@/config/site"
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
@@ -181,17 +182,24 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
         {/* Header */}
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <Image
-              src="/colect-logo.png"
-              alt="Colect"
-              width={40}
-              height={40}
-              className="rounded-xl"
-            />
+            {siteConfig.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={siteConfig.logoUrl}
+                alt={siteConfig.name}
+                width={40}
+                height={40}
+                className="rounded-xl object-contain"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                <span className="text-primary font-bold text-lg">{siteConfig.name[0]}</span>
+              </div>
+            )}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Colect</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{siteConfig.name}</h2>
               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-primary/10 text-primary">
-                Partner Portal
+                {siteConfig.title}
               </span>
             </div>
           </div>
@@ -349,6 +357,9 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
                               fill
                               sizes="48px"
                               className="object-cover"
+                              placeholder={result.blurDataUrl ? "blur" : undefined}
+                              blurDataURL={result.blurDataUrl || undefined}
+                              unoptimized
                             />
                           ) : (
                             <>

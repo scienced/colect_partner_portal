@@ -13,6 +13,7 @@ export interface ContentItem {
   title: string
   description?: string | null
   thumbnailUrl?: string | null
+  blurDataUrl?: string | null
   type?: string
   href: string
   external?: boolean
@@ -315,6 +316,9 @@ function ContentCard({
             fill
             sizes="(max-width: 768px) 100vw, 288px"
             className="object-cover"
+            placeholder={item.blurDataUrl ? "blur" : undefined}
+            blurDataURL={item.blurDataUrl || undefined}
+            unoptimized
           />
         ) : (
           <div className={cn(

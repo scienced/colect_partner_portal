@@ -5,7 +5,7 @@ import { Upload, X, FileIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 
 interface FileUploaderProps {
-  onUploadComplete: (fileUrl: string) => void
+  onUploadComplete: (fileUrl: string, metadata?: { blurDataUrl?: string }) => void
   folder?: "assets" | "thumbnails" | "team-photos" | "videos" | "campaigns"
   accept?: string
   maxSizeMB?: number
@@ -56,13 +56,13 @@ export function FileUploader({
             throw new Error(error.error || "Failed to upload thumbnail")
           }
 
-          const { thumbnailUrl, originalSize, thumbnailSize } = await response.json()
+          const { thumbnailUrl, blurDataUrl, originalSize, thumbnailSize } = await response.json()
 
           // Log compression results
           const compressionRatio = ((1 - thumbnailSize / originalSize) * 100).toFixed(1)
           console.log(`Thumbnail optimized: ${(originalSize / 1024).toFixed(0)}KB → ${(thumbnailSize / 1024).toFixed(0)}KB (${compressionRatio}% smaller)`)
 
-          onUploadComplete(thumbnailUrl)
+          onUploadComplete(thumbnailUrl, { blurDataUrl })
           return
         }
 

@@ -9,9 +9,9 @@
     line-height: 1.5;
     font-weight: 400;
 
-    /* Color variables */
-    --color-primary: #ef556d;
-    --color-primary-hover: rgba(239, 85, 109, 0.9);
+    /* Primary color as RGB values (space-separated for Tailwind opacity support)
+       This is the default - can be overridden via NEXT_PUBLIC_PRIMARY_COLOR env var */
+    --color-primary-rgb: 239 85 109;
   }
 
   body {

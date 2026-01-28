@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript types for the Colect Partner Portal
+ * Shared TypeScript types for the Partner Portal
  */
 
 // Asset types matching Prisma schema
@@ -12,6 +12,7 @@ export interface Asset {
   description: string | null
   fileUrl: string | null
   thumbnailUrl: string | null
+  blurDataUrl: string | null
   fileType: string | null
   fileSize: number | null
   region: string[]
@@ -64,6 +65,7 @@ export interface SearchResult {
   type?: AssetType
   description?: string | null
   thumbnailUrl?: string | null
+  blurDataUrl?: string | null
   fileUrl?: string | null
   externalLink?: string | null
   language?: string[]
@@ -94,6 +96,7 @@ export interface AssetInfo {
   type: string
   category?: string
   thumbnailUrl?: string | null
+  blurDataUrl?: string | null
   fileUrl?: string | null
   externalLink?: string | null
   language?: string[]

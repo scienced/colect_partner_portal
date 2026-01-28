@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { User, Mail, Linkedin } from "lucide-react"
+import { siteConfig } from "@/config/site"
 
 export default async function WhoIsWhoPage() {
   const teamMembers = await prisma.teamMember.findMany({
@@ -20,7 +21,7 @@ export default async function WhoIsWhoPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Who&apos;s Who at Colect"
+        title={`Who's Who at ${siteConfig.name}`}
         description="Meet the team that supports our partners"
       />
 

@@ -16,7 +16,7 @@ export function initSupertokensFrontend() {
   try {
     SuperTokens.init({
       appInfo: {
-        appName: process.env.NEXT_PUBLIC_SUPERTOKENS_APP_NAME || "Colect Partner Portal",
+        appName: process.env.NEXT_PUBLIC_SUPERTOKENS_APP_NAME || "Partner Portal",
         apiDomain: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
         apiBasePath: "/api/auth",
       },

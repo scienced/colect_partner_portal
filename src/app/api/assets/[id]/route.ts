@@ -12,6 +12,7 @@ const UpdateAssetSchema = z.object({
   description: z.string().optional().nullable(),
   fileUrl: z.string().optional().nullable(),
   thumbnailUrl: z.string().optional().nullable(),
+  blurDataUrl: z.string().optional().nullable(),
   fileType: z.string().optional().nullable(),
   fileSize: z.number().optional().nullable(),
   region: z.array(z.string()).optional(),

@@ -6,7 +6,7 @@ import sharp from "sharp"
 // Thumbnail settings
 const THUMBNAIL_WIDTH = 800
 const THUMBNAIL_HEIGHT = 450  // 16:9 aspect ratio
-const THUMBNAIL_QUALITY = 85
+const THUMBNAIL_QUALITY = 75
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,14 +45,19 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Process image with sharp - resize and optimize
-    const processedBuffer = await sharp(buffer)
-      .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
-        withoutEnlargement: true, // Don't upscale small images
-        fit: "cover",
-        position: "centre",
-      })
-      .jpeg({ quality: THUMBNAIL_QUALITY, progressive: true })
-      .toBuffer()
+    const sharpInstance = sharp(buffer).resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
+      withoutEnlargement: true,
+      fit: "cover",
+      position: "centre",
+    })
+
+    // Generate thumbnail and blur placeholder in parallel
+    const [processedBuffer, blurBuffer] = await Promise.all([
+      sharpInstance.clone().jpeg({ quality: THUMBNAIL_QUALITY, progressive: true }).toBuffer(),
+      sharpInstance.clone().resize(10, 6).jpeg({ quality: 40 }).toBuffer(),
+    ])
+
+    const blurDataUrl = `data:image/jpeg;base64,${blurBuffer.toString("base64")}`
 
     // Generate filename
     const timestamp = Date.now()
@@ -65,6 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       thumbnailUrl,
+      blurDataUrl,
       originalSize: file.size,
       thumbnailSize: processedBuffer.length,
     })

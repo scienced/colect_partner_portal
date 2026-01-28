@@ -26,6 +26,27 @@ export async function GET(request: NextRequest) {
         { pinOrder: "desc" },
         { publishedAt: "desc" },
       ],
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        description: true,
+        fileUrl: true,
+        thumbnailUrl: true,
+        blurDataUrl: true,
+        externalLink: true,
+        language: true,
+        persona: true,
+        campaignGoal: true,
+        sentAt: true,
+        createdAt: true,
+        updatedAt: true,
+        publishedAt: true,
+        isPinned: true,
+        pinnedAt: true,
+        pinExpiresAt: true,
+        pinOrder: true,
+      },
     })
 
     // Filter out expired pins and sort correctly

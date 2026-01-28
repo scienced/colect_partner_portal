@@ -83,6 +83,9 @@ export default function VideosPage() {
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover"
+                      placeholder={video.blurDataUrl ? "blur" : undefined}
+                      blurDataURL={video.blurDataUrl || undefined}
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-800">

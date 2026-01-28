@@ -56,6 +56,7 @@ export function AssetForm({
     description: initialData?.description || "",
     fileUrl: initialData?.fileUrl || "",
     thumbnailUrl: initialData?.thumbnailUrl || "",
+    blurDataUrl: initialData?.blurDataUrl || "",
     language: initialData?.language || [],
     persona: initialData?.persona || [],
     campaignGoal: initialData?.campaignGoal || "",
@@ -82,6 +83,7 @@ export function AssetForm({
         description: initialData?.description || "",
         fileUrl: initialData?.fileUrl || "",
         thumbnailUrl: initialData?.thumbnailUrl || "",
+        blurDataUrl: initialData?.blurDataUrl || "",
         language: initialData?.language || [],
         persona: initialData?.persona || [],
         campaignGoal: initialData?.campaignGoal || "",
@@ -332,8 +334,8 @@ export function AssetForm({
             label="Thumbnail"
             folder="thumbnails"
             currentUrl={formData.thumbnailUrl}
-            onUploadComplete={(url) =>
-              setFormData({ ...formData, thumbnailUrl: url })
+            onUploadComplete={(url, metadata) =>
+              setFormData({ ...formData, thumbnailUrl: url, blurDataUrl: metadata?.blurDataUrl || "" })
             }
             accept="image/*"
             maxSizeMB={5}
