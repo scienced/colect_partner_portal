@@ -6,6 +6,19 @@ const publicRoutes = ["/login", "/login/verify", "/api/auth"]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const hostname = request.headers.get("host") || ""
+
+  // Redirect old DigitalOcean domain to the canonical custom domain
+  const canonicalDomain = process.env.NEXT_PUBLIC_APP_URL
+    ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
+    : null
+  if (canonicalDomain && hostname !== canonicalDomain && hostname.endsWith(".ondigitalocean.app")) {
+    const url = request.nextUrl.clone()
+    url.host = canonicalDomain
+    url.protocol = "https"
+    url.port = ""
+    return NextResponse.redirect(url, 308)
+  }
 
   // Allow public routes
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
