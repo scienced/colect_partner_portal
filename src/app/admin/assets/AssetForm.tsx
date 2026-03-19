@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button"
 import { Input, Textarea, Select, Checkbox } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { FileUploader } from "@/components/admin/FileUploader"
-import { Wand2, Pin } from "lucide-react"
+import { Wand2, Pin, Link2, Upload, Plus } from "lucide-react"
 import { endOfWeek, endOfMonth, addDays, format } from "date-fns"
 
 type PinDuration = "14days" | "endOfWeek" | "endOfMonth" | "custom"
@@ -48,6 +48,7 @@ export function AssetForm({
   const [loading, setLoading] = useState(false)
   const [generatingThumbnail, setGeneratingThumbnail] = useState(false)
   const [thumbnailError, setThumbnailError] = useState<string | null>(null)
+  const [assetShareMode, setAssetShareMode] = useState<"link" | "file" | "both">("link")
   const [pinDuration, setPinDuration] = useState<PinDuration>("14days")
   const [customPinDate, setCustomPinDate] = useState<string>("")
   const [formData, setFormData] = useState({
@@ -103,6 +104,14 @@ export function AssetForm({
       setThumbnailError(null)
       setPinDuration("14days")
       setCustomPinDate("")
+      // Determine asset share mode from existing data
+      if (initialData?.externalLink && initialData?.fileUrl) {
+        setAssetShareMode("both")
+      } else if (initialData?.fileUrl) {
+        setAssetShareMode("file")
+      } else {
+        setAssetShareMode("link")
+      }
     }
   }, [open, initialData, defaultType])
 
@@ -229,17 +238,90 @@ export function AssetForm({
           rows={3}
         />
 
-        {/* Asset-specific: External Link (before file upload so thumbnail can use it) */}
+        {/* Asset-specific: Toggle between Link and File */}
         {formData.type === "ASSET" && (
-          <Input
-            label="External Link"
-            value={formData.externalLink}
-            onChange={(e) =>
-              setFormData({ ...formData, externalLink: e.target.value })
-            }
-            placeholder="https://figma.com/..."
-            helperText="Figma, demo environment, or other external link"
-          />
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              How should partners access this?
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAssetShareMode("link")
+                  setFormData({ ...formData, fileUrl: "" })
+                }}
+                className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-sm font-medium ${
+                  assetShareMode === "link" || assetShareMode === "both"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <Link2 className="w-4 h-4" />
+                External link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAssetShareMode("file")
+                  setFormData({ ...formData, externalLink: "" })
+                }}
+                className={`flex-1 flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-sm font-medium ${
+                  assetShareMode === "file" || assetShareMode === "both"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                Upload file
+              </button>
+            </div>
+
+            {/* Link field */}
+            {(assetShareMode === "link" || assetShareMode === "both") && (
+              <Input
+                label="External Link"
+                value={formData.externalLink}
+                onChange={(e) =>
+                  setFormData({ ...formData, externalLink: e.target.value })
+                }
+                placeholder="https://docs.google.com/..., https://figma.com/..."
+                helperText="Link to a Google Doc, Figma file, website, or any online resource"
+              />
+            )}
+
+            {/* File upload */}
+            {(assetShareMode === "file" || assetShareMode === "both") && (
+              <FileUploader
+                label="File"
+                folder="assets"
+                currentUrl={formData.fileUrl}
+                onUploadComplete={(url) =>
+                  setFormData({ ...formData, fileUrl: url })
+                }
+                accept=".pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg"
+                maxSizeMB={50}
+              />
+            )}
+
+            {/* Toggle to show both */}
+            {assetShareMode !== "both" && (
+              <button
+                type="button"
+                onClick={() => setAssetShareMode("both")}
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                {assetShareMode === "link" ? "Also upload a file" : "Also add an external link"}
+              </button>
+            )}
+
+            {assetShareMode === "both" && (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-md px-3 py-2">
+                Partners will see both a download button and an external link. This is useful for presentations where you offer a PDF download and a link to editable slides.
+              </p>
+            )}
+          </div>
         )}
 
         {/* Deck-specific: External Link for Google Slides */}
@@ -251,7 +333,7 @@ export function AssetForm({
               setFormData({ ...formData, externalLink: e.target.value })
             }
             placeholder="https://docs.google.com/presentation/..."
-            helperText="Google Slides or other live document URL"
+            helperText="Google Slides or other live document URL — partners will see this as an additional 'View Slides' button alongside the file download"
           />
         )}
 
@@ -281,7 +363,7 @@ export function AssetForm({
           />
         )}
 
-        {/* File upload - different for videos and campaigns */}
+        {/* File upload - for non-asset types */}
         {formData.type === "VIDEO" ? (
           <FileUploader
             label="Video File (optional if using YouTube)"
@@ -304,18 +386,7 @@ export function AssetForm({
             accept=".html,.htm,.pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg"
             maxSizeMB={50}
           />
-        ) : formData.type === "ASSET" ? (
-          <FileUploader
-            label="File (optional)"
-            folder="assets"
-            currentUrl={formData.fileUrl}
-            onUploadComplete={(url) =>
-              setFormData({ ...formData, fileUrl: url })
-            }
-            accept=".pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip"
-            maxSizeMB={50}
-          />
-        ) : (
+        ) : formData.type === "DECK" ? (
           <FileUploader
             label="File"
             folder="assets"
@@ -326,7 +397,18 @@ export function AssetForm({
             accept=".pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip"
             maxSizeMB={50}
           />
-        )}
+        ) : formData.type !== "ASSET" ? (
+          <FileUploader
+            label="File"
+            folder="assets"
+            currentUrl={formData.fileUrl}
+            onUploadComplete={(url) =>
+              setFormData({ ...formData, fileUrl: url })
+            }
+            accept=".pdf,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.zip"
+            maxSizeMB={50}
+          />
+        ) : null}
 
         {/* Thumbnail upload with auto-generate option for campaigns and assets */}
         <div className="space-y-2">
