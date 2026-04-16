@@ -38,10 +38,9 @@ export function middleware(request: NextRequest) {
 </body>
 </html>`,
       {
-        status: 503,
+        status: 200,
         headers: {
           "Content-Type": "text/html; charset=utf-8",
-          "Retry-After": "3600",
         },
       }
     )
