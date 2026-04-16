@@ -48,7 +48,7 @@ export default function HomePage() {
     externalLink?: string | null
     deepLink?: string
     campaignLink?: string | null
-    language?: string[]
+    availableLanguages?: string[]
     persona?: string[]
     campaignGoal?: string | null
     sentAt?: string | null
@@ -76,7 +76,7 @@ export default function HomePage() {
       external: shouldOpenExternal(item),
       fileUrl: item.fileUrl,
       externalLink,
-      language: item.language,
+      availableLanguages: item.availableLanguages,
       persona: item.persona,
       campaignGoal: item.campaignGoal,
       sentAt: item.sentAt,
@@ -163,7 +163,7 @@ export default function HomePage() {
     fileUrl: deck.fileUrl,
     externalLink: deck.externalLink,
     category: "deck" as const,
-    language: deck.language,
+    availableLanguages: deck.availableLanguages,
     persona: deck.persona,
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt,
@@ -182,7 +182,7 @@ export default function HomePage() {
     fileUrl: video.fileUrl,
     externalLink: video.externalLink,
     category: "video" as const,
-    language: video.language,
+    availableLanguages: video.availableLanguages,
     persona: video.persona,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
@@ -202,7 +202,7 @@ export default function HomePage() {
     externalLink: campaign.externalLink || campaign.campaignLink,
     // Don't set meta for campaigns - date is shown in the date pill
     category: "campaign" as const,
-    language: campaign.language,
+    availableLanguages: campaign.availableLanguages,
     persona: campaign.persona,
     campaignGoal: campaign.campaignGoal,
     sentAt: campaign.sentAt,
@@ -223,7 +223,7 @@ export default function HomePage() {
     fileUrl: asset.fileUrl,
     externalLink: asset.externalLink,
     category: "asset" as const,
-    language: asset.language,
+    availableLanguages: asset.availableLanguages,
     persona: asset.persona,
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
@@ -266,7 +266,7 @@ export default function HomePage() {
       meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
       category: item.type?.toLowerCase() as ContentItem["category"],
       status: isNew ? "new" as const : "updated" as const,
-      language: item.language,
+      availableLanguages: item.availableLanguages,
       persona: item.persona,
       campaignGoal: item.campaignGoal,
       createdAt: item.createdAt,
@@ -432,7 +432,7 @@ export default function HomePage() {
               : undefined),
           fileUrl: selectedAsset.fileUrl,
           externalLink: selectedAsset.externalLink,
-          language: selectedAsset.language,
+          availableLanguages: selectedAsset.availableLanguages,
           persona: selectedAsset.persona,
           campaignGoal: selectedAsset.campaignGoal,
           sentAt: selectedAsset.sentAt,

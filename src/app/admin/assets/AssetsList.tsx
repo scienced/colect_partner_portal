@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Asset, AssetType } from "@prisma/client"
+import { AssetType } from "@prisma/client"
+import type { AdminAsset } from "@/lib/adminAssets"
+
+type AssetWithVariants = AdminAsset
 import { Card } from "@/components/ui/Card"
 import { Button, IconButton } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -21,17 +24,17 @@ import {
 } from "lucide-react"
 
 interface AssetsListProps {
-  initialAssets: Asset[]
+  initialAssets: AssetWithVariants[]
 }
 
 export function AssetsList({ initialAssets }: AssetsListProps) {
   const router = useRouter()
-  const [assets, setAssets] = useState(initialAssets)
+  const [assets, setAssets] = useState<AssetWithVariants[]>(initialAssets)
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<AssetType | "">("")
   const [showForm, setShowForm] = useState(false)
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
-  const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null)
+  const [editingAsset, setEditingAsset] = useState<AssetWithVariants | null>(null)
+  const [deletingAsset, setDeletingAsset] = useState<AssetWithVariants | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const filteredAssets = assets.filter((asset) => {
@@ -54,7 +57,7 @@ export function AssetsList({ initialAssets }: AssetsListProps) {
     }
   }
 
-  const handleCreate = async (data: Partial<Asset>) => {
+  const handleCreate = async (data: Record<string, unknown>) => {
     const response = await fetch("/api/assets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +72,7 @@ export function AssetsList({ initialAssets }: AssetsListProps) {
     }
   }
 
-  const handleUpdate = async (data: Partial<Asset>) => {
+  const handleUpdate = async (data: Record<string, unknown>) => {
     if (!editingAsset) return
 
     const response = await fetch(`/api/assets/${editingAsset.id}`, {
@@ -174,12 +177,21 @@ export function AssetsList({ initialAssets }: AssetsListProps) {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <StatusBadge status="neutral">{asset.type}</StatusBadge>
                     {asset.publishedAt ? (
                       <StatusBadge status="success">Published</StatusBadge>
                     ) : (
                       <StatusBadge status="warning">Draft</StatusBadge>
+                    )}
+                    {asset.availableLanguages && asset.availableLanguages.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        {asset.availableLanguages.map((lang) => (
+                          <StatusBadge key={lang} status="info">
+                            {lang}
+                          </StatusBadge>
+                        ))}
+                      </div>
                     )}
                     {asset.region.length > 0 && (
                       <span className="text-xs text-gray-400">

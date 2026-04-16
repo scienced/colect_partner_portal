@@ -22,7 +22,7 @@ export interface ContentItem {
   meta?: string
   category?: "deck" | "video" | "campaign" | "asset" | "docs"
   status?: "new" | "updated"
-  language?: string[]
+  availableLanguages?: string[]
   persona?: string[]
   campaignGoal?: string | null
   sentAt?: string | null
@@ -356,6 +356,19 @@ function ContentCard({
         </h3>
         {item.description && (
           <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{item.description}</p>
+        )}
+        {/* Language indicator — only show when multiple languages are available */}
+        {item.availableLanguages && item.availableLanguages.length > 1 && (
+          <div className="flex items-center gap-1 mt-1 flex-wrap">
+            {item.availableLanguages.map((lang) => (
+              <span
+                key={lang}
+                className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
+              >
+                {lang}
+              </span>
+            ))}
+          </div>
         )}
         {/* Campaign Date Pill */}
         {category === "campaign" && item.sentAt && (() => {

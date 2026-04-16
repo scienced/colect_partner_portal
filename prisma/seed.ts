@@ -3,7 +3,21 @@ import { PrismaClient, AssetType, UserRole } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seeding database...')
+  // Safety check: seeding overwrites/adds sample data. Require explicit opt-in
+  // so it can't be run accidentally against a real DB (including production
+  // and development branches that hold real content).
+  if (process.env.SEED_CONFIRM !== 'yes') {
+    console.error(
+      '\n❌  Refusing to seed: set SEED_CONFIRM=yes to proceed.\n' +
+        '   This script creates sample data and is only meant for fresh databases.\n' +
+        '   Example: SEED_CONFIRM=yes npm run db:seed\n'
+    )
+    process.exit(1)
+  }
+
+  // Print the target host so the operator can double-check.
+  const dbHost = (process.env.DATABASE_URL || '').match(/@([^/]+)/)?.[1] || '(unknown)'
+  console.log(`Seeding database at: ${dbHost}`)
 
   // Create sample admin user
   // IMPORTANT: Change this email to your actual admin email domain
@@ -37,7 +51,7 @@ async function main() {
       title: 'Platform Overview 2024',
       description: 'Comprehensive overview of the platform features and capabilities.',
       region: ['EMEA', 'Americas', 'APAC'],
-      language: ['en'],
+      availableLanguages: ['EN'],
       persona: ['Sales', 'Executive'],
       publishedAt: new Date(),
     },
@@ -49,7 +63,7 @@ async function main() {
       title: 'Enterprise Integration Guide',
       description: 'Technical integration guide for enterprise customers.',
       region: ['Global'],
-      language: ['en', 'de'],
+      availableLanguages: ['EN', 'DE'],
       persona: ['Technical', 'Sales'],
       publishedAt: new Date(),
     },
@@ -65,7 +79,7 @@ async function main() {
       description: 'Email templates and assets for the Q1 partner campaign.',
       campaignGoal: 'Increase partner engagement and pipeline',
       region: ['EMEA'],
-      language: ['en', 'nl', 'de'],
+      availableLanguages: ['EN', 'NL', 'DE'],
       persona: ['Marketing'],
       publishedAt: new Date(),
     },
@@ -73,17 +87,26 @@ async function main() {
 
   console.log('Created sample campaign:', campaign1.title)
 
-  // Create sample assets
+  // Create sample asset with a real external link — demonstrates the new
+  // variant model. Dual-writes the legacy externalLink column for expand-phase
+  // rollback safety.
   const asset1 = await prisma.asset.create({
     data: {
       type: AssetType.ASSET,
       title: 'Logo Pack',
       description: 'Official logos in various formats (PNG, SVG, EPS).',
-      externalLink: 'https://example.com/brand/logos',
+      externalLink: 'https://example.com/brand/logos', // legacy column, dual-write
       region: ['Global'],
-      language: ['en'],
+      availableLanguages: ['EN'],
       persona: ['Marketing'],
       publishedAt: new Date(),
+      variants: {
+        create: {
+          language: 'EN',
+          externalLink: 'https://example.com/brand/logos',
+          displayOrder: 0,
+        },
+      },
     },
   })
 

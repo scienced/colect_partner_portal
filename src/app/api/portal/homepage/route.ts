@@ -2,6 +2,46 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
+import { defaultVariant } from "@/lib/assetVariants"
+
+// Shared variant shape re-used in every select below.
+const variantSelect = {
+  id: true,
+  language: true,
+  fileUrl: true,
+  fileType: true,
+  fileSize: true,
+  externalLink: true,
+  displayOrder: true,
+} as const
+
+const variantInclude = {
+  select: variantSelect,
+  orderBy: [{ displayOrder: "asc" as const }, { language: "asc" as const }],
+}
+
+// Shared scalar select for an Asset row shown on the homepage.
+const assetSelect = {
+  id: true,
+  type: true,
+  title: true,
+  description: true,
+  thumbnailUrl: true,
+  blurDataUrl: true,
+  availableLanguages: true,
+  persona: true,
+  campaignGoal: true,
+  campaignLink: true,
+  sentAt: true,
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true,
+  isPinned: true,
+  pinnedAt: true,
+  pinExpiresAt: true,
+  pinOrder: true,
+  variants: variantInclude,
+} as const
 
 // Helper to generate YouTube thumbnail from URL
 function getYouTubeThumbnail(url: string | null): string | null {
@@ -68,15 +108,7 @@ export async function GET() {
         orderBy: { displayOrder: "asc" },
         take: 5,
         include: {
-          asset: {
-            select: {
-              id: true, type: true, title: true, description: true,
-              fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-              language: true, persona: true, campaignGoal: true,
-              campaignLink: true, sentAt: true,
-              createdAt: true, updatedAt: true,
-            },
-          },
+          asset: { select: assetSelect },
           docsUpdate: true,
           productUpdate: true,
         },
@@ -85,49 +117,25 @@ export async function GET() {
         where: { type: "DECK", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
-        select: {
-          id: true, type: true, title: true, description: true,
-          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-          language: true, persona: true, campaignGoal: true, sentAt: true,
-          createdAt: true, updatedAt: true, publishedAt: true,
-          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
-        },
+        select: assetSelect,
       }),
       prisma.asset.findMany({
         where: { type: "VIDEO", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
-        select: {
-          id: true, type: true, title: true, description: true,
-          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-          language: true, persona: true, campaignGoal: true, sentAt: true,
-          createdAt: true, updatedAt: true, publishedAt: true,
-          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
-        },
+        select: assetSelect,
       }),
       prisma.asset.findMany({
         where: { type: "CAMPAIGN", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
-        select: {
-          id: true, type: true, title: true, description: true,
-          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-          language: true, persona: true, campaignGoal: true, sentAt: true,
-          createdAt: true, updatedAt: true, publishedAt: true,
-          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
-        },
+        select: assetSelect,
       }),
       prisma.asset.findMany({
         where: { type: "ASSET", publishedAt: { not: null } },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
-        select: {
-          id: true, type: true, title: true, description: true,
-          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-          language: true, persona: true, campaignGoal: true, sentAt: true,
-          createdAt: true, updatedAt: true, publishedAt: true,
-          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
-        },
+        select: assetSelect,
       }),
       prisma.docsUpdate.findMany({
         where: { publishedAt: { not: null } },
@@ -138,13 +146,7 @@ export async function GET() {
         where: { publishedAt: { not: null } },
         orderBy: { updatedAt: "desc" },
         take: 10,
-        select: {
-          id: true, type: true, title: true, description: true,
-          fileUrl: true, thumbnailUrl: true, blurDataUrl: true, externalLink: true,
-          language: true, persona: true, campaignGoal: true, sentAt: true,
-          createdAt: true, updatedAt: true, publishedAt: true,
-          isPinned: true, pinnedAt: true, pinExpiresAt: true, pinOrder: true,
-        },
+        select: assetSelect,
       }),
       prisma.docsUpdate.findMany({
         where: { publishedAt: { not: null } },
@@ -153,99 +155,169 @@ export async function GET() {
       }),
     ])
 
-    // Merge and sort recently updated items (assets + docs)
-    const recentlyUpdated = [
-      ...recentAssets.map(a => ({ ...a, _type: "asset" as const })),
-      ...recentDocs.map(d => ({
-        id: d.id,
-        type: "DOCS" as const,
-        title: d.title,
-        description: d.summary,
-        thumbnailUrl: null,
-        fileUrl: null,
-        externalLink: d.deepLink,
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
-        _type: "docs" as const,
-      })),
-    ]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 10)
-
-    // Process pins (filter expired, re-sort)
+    // Process pins (filter expired, re-sort) for each type
     const processedDecks = processAssetPins(latestDecks)
     const processedVideos = processAssetPins(latestVideos)
     const processedCampaigns = processAssetPins(latestCampaigns)
     const processedAssets = processAssetPins(latestAssets)
 
-    // Batch presign all S3 URLs at once (instead of per-item calls)
-    const allItems = [...processedDecks, ...processedVideos, ...processedCampaigns, ...processedAssets, ...recentlyUpdated]
-    const allThumbnailUrls = allItems.map(a => a.thumbnailUrl)
-    const allFileUrls = allItems.map(a => a.fileUrl)
+    // Resolve the default variant for every asset in one pass so downstream
+    // code can use pre-resolved fileUrl/externalLink. The full `variants`
+    // array stays on the asset for the drawer language toggle.
+    type AssetRow = typeof processedDecks[number]
+    const defaults = (a: AssetRow) => {
+      const d = defaultVariant(a.variants)
+      return { fileUrl: d?.fileUrl ?? null, externalLink: d?.externalLink ?? null }
+    }
+
+    // Build the recently-updated list (assets + docs interleaved by updatedAt)
+    const recentAssetsWithDefaults = recentAssets.map((a) => ({
+      ...a,
+      _type: "asset" as const,
+      _defaults: defaults(a),
+    }))
+    const recentDocsNormalized = recentDocs.map((d) => ({
+      id: d.id,
+      type: "DOCS" as const,
+      title: d.title,
+      description: d.summary,
+      thumbnailUrl: null,
+      externalLink: d.deepLink,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      _type: "docs" as const,
+      _defaults: { fileUrl: null as string | null, externalLink: d.deepLink as string | null },
+      variants: [] as typeof recentAssets[number]["variants"],
+    }))
+
+    type RecentItem =
+      | (typeof recentAssetsWithDefaults)[number]
+      | (typeof recentDocsNormalized)[number]
+
+    const recentlyUpdatedRaw: RecentItem[] = [
+      ...recentAssetsWithDefaults,
+      ...recentDocsNormalized,
+    ]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 10)
+
+    // Batch presign: ONLY the default variant's file per asset. Non-default
+    // language variants are presigned on-demand via
+    // /api/portal/assets/[id]/variant when the drawer toggle is used.
+    const allItems: Array<{ thumbnailUrl: string | null; _defaults?: { fileUrl: string | null } } | AssetRow> = [
+      ...processedDecks,
+      ...processedVideos,
+      ...processedCampaigns,
+      ...processedAssets,
+      ...recentlyUpdatedRaw,
+    ]
+    const allThumbnailUrls = allItems.map((a) => (a as { thumbnailUrl: string | null }).thumbnailUrl)
+    const allFileUrls = allItems.map((a) => {
+      if ("_defaults" in a && a._defaults) return a._defaults.fileUrl
+      return defaults(a as AssetRow).fileUrl
+    })
+
     const [presignedThumbnails, presignedFiles] = await Promise.all([
       getPresignedUrls(allThumbnailUrls),
       getPresignedUrls(allFileUrls),
     ])
 
-    // Split presigned URLs back to their respective arrays
+    // Split presigned URLs back to their respective arrays, and expose the
+    // pre-resolved default variant's fileUrl/externalLink at the top level
+    // so existing card code paths keep working.
     let offset = 0
-    const decks = processedDecks.map((a, i) => ({
-      ...a,
-      thumbnailUrl: presignedThumbnails[offset + i],
-      fileUrl: presignedFiles[offset + i],
-    }))
-    offset += processedDecks.length
-    const videos = processedVideos.map((a, i) => ({
-      ...a,
-      thumbnailUrl: presignedThumbnails[offset + i] ?? getYouTubeThumbnail(a.externalLink),
-      fileUrl: presignedFiles[offset + i],
-    }))
-    offset += processedVideos.length
-    const campaigns = processedCampaigns.map((a, i) => ({
-      ...a,
-      thumbnailUrl: presignedThumbnails[offset + i],
-      fileUrl: presignedFiles[offset + i],
-    }))
-    offset += processedCampaigns.length
-    const assets = processedAssets.map((a, i) => ({
-      ...a,
-      thumbnailUrl: presignedThumbnails[offset + i],
-      fileUrl: presignedFiles[offset + i],
-    }))
-    offset += processedAssets.length
-    const recent = recentlyUpdated.map((item, i) => ({
-      ...item,
-      thumbnailUrl: presignedThumbnails[offset + i]
-        ?? (item._type === "asset" && (item as any).type === "VIDEO"
-            ? getYouTubeThumbnail((item as any).externalLink)
-            : null),
-      fileUrl: presignedFiles[offset + i],
-    }))
 
-    // Batch presign featured content URLs
-    const featuredThumbnailUrls = featuredContent.map(item => item.asset?.thumbnailUrl ?? null)
-    const featuredFileUrls = featuredContent.map(item => item.asset?.fileUrl ?? null)
+    const mapAsset = (a: AssetRow, fallbackThumb: string | null, presignedFileUrl: string | null) => {
+      const d = defaults(a)
+      return {
+        ...a,
+        thumbnailUrl: fallbackThumb,
+        fileUrl: presignedFileUrl,
+        externalLink: d.externalLink,
+      }
+    }
+
+    const decks = processedDecks.map((a, i) =>
+      mapAsset(a, presignedThumbnails[offset + i], presignedFiles[offset + i])
+    )
+    offset += processedDecks.length
+
+    const videos = processedVideos.map((a, i) => {
+      const d = defaults(a)
+      return {
+        ...a,
+        thumbnailUrl:
+          presignedThumbnails[offset + i] ?? getYouTubeThumbnail(d.externalLink),
+        fileUrl: presignedFiles[offset + i],
+        externalLink: d.externalLink,
+      }
+    })
+    offset += processedVideos.length
+
+    const campaigns = processedCampaigns.map((a, i) =>
+      mapAsset(a, presignedThumbnails[offset + i], presignedFiles[offset + i])
+    )
+    offset += processedCampaigns.length
+
+    const assets = processedAssets.map((a, i) =>
+      mapAsset(a, presignedThumbnails[offset + i], presignedFiles[offset + i])
+    )
+    offset += processedAssets.length
+
+    const recent = recentlyUpdatedRaw.map((item, i) => {
+      const thumb = presignedThumbnails[offset + i]
+      const file = presignedFiles[offset + i]
+      if (item._type === "asset") {
+        const asset = item as (typeof recentAssetsWithDefaults)[number]
+        return {
+          ...asset,
+          thumbnailUrl:
+            thumb ??
+            (asset.type === "VIDEO"
+              ? getYouTubeThumbnail(asset._defaults.externalLink)
+              : null),
+          fileUrl: file,
+          externalLink: asset._defaults.externalLink,
+        }
+      }
+      const doc = item as (typeof recentDocsNormalized)[number]
+      return {
+        ...doc,
+        thumbnailUrl: thumb,
+        fileUrl: file,
+      }
+    })
+
+    // Batch presign featured content's default variant files
+    const featuredItems = featuredContent.map((item) => {
+      const d = item.asset ? defaults(item.asset) : null
+      return { item, d }
+    })
+    const featuredThumbnailUrls = featuredItems.map(({ item }) => item.asset?.thumbnailUrl ?? null)
+    const featuredFileUrls = featuredItems.map(({ d }) => d?.fileUrl ?? null)
     const [featuredPresignedThumbs, featuredPresignedFiles] = await Promise.all([
       getPresignedUrls(featuredThumbnailUrls),
       getPresignedUrls(featuredFileUrls),
     ])
 
-    const featured = featuredContent.map((item, i) => {
+    const featured = featuredItems.map(({ item, d }, i) => {
       const asset = item.asset
       const docsUpdate = item.docsUpdate
 
-      if (asset) {
-        const thumbnailUrl = featuredPresignedThumbs[i]
-          ?? (asset.type === "VIDEO" ? getYouTubeThumbnail(asset.externalLink) : null)
+      if (asset && d) {
+        const thumbnailUrl =
+          featuredPresignedThumbs[i] ??
+          (asset.type === "VIDEO" ? getYouTubeThumbnail(d.externalLink) : null)
         const fileUrl = featuredPresignedFiles[i]
+        const externalLink = d.externalLink
 
         return {
           id: item.id,
           title: item.title || asset.title,
           description: item.description || asset.description,
           thumbnailUrl,
-          href: getAssetHref(asset, fileUrl),
-          external: shouldOpenExternal(asset),
+          href: getAssetHref(asset.type, fileUrl, externalLink, asset.campaignLink),
+          external: shouldOpenExternal(asset.type, fileUrl, externalLink, asset.campaignLink),
           category: asset.type.toLowerCase(),
           asset: {
             id: asset.id,
@@ -255,8 +327,9 @@ export async function GET() {
             thumbnailUrl,
             blurDataUrl: asset.blurDataUrl,
             fileUrl,
-            externalLink: asset.externalLink,
-            language: asset.language,
+            externalLink,
+            variants: asset.variants,
+            availableLanguages: asset.availableLanguages,
             persona: asset.persona,
             campaignGoal: asset.campaignGoal,
             sentAt: asset.sentAt,
@@ -281,7 +354,8 @@ export async function GET() {
             thumbnailUrl: null,
             fileUrl: null,
             externalLink: docsUpdate.deepLink,
-            language: [],
+            variants: [],
+            availableLanguages: [],
             persona: [],
             campaignGoal: null,
             sentAt: null,
@@ -315,32 +389,43 @@ export async function GET() {
   }
 }
 
-// Helper functions
-function getAssetHref(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }, presignedFileUrl: string | null): string {
-  switch (asset.type) {
+// Helper functions — take pre-resolved default variant fields so the caller
+// has a single source of truth for which language is being rendered.
+function getAssetHref(
+  type: string,
+  presignedFileUrl: string | null,
+  externalLink: string | null,
+  campaignLink: string | null
+): string {
+  switch (type) {
     case "DECK":
       return presignedFileUrl || "/decks"
     case "VIDEO":
-      return asset.externalLink || presignedFileUrl || "/videos"
+      return externalLink || presignedFileUrl || "/videos"
     case "CAMPAIGN":
-      return presignedFileUrl || asset.externalLink || asset.campaignLink || "/campaigns"
+      return presignedFileUrl || externalLink || campaignLink || "/campaigns"
     case "ASSET":
-      return asset.externalLink || presignedFileUrl || "/assets"
+      return externalLink || presignedFileUrl || "/assets"
     default:
       return "/"
   }
 }
 
-function shouldOpenExternal(asset: { type: string; fileUrl: string | null; externalLink: string | null; campaignLink: string | null }): boolean {
-  switch (asset.type) {
+function shouldOpenExternal(
+  type: string,
+  presignedFileUrl: string | null,
+  externalLink: string | null,
+  campaignLink: string | null
+): boolean {
+  switch (type) {
     case "DECK":
-      return !!asset.fileUrl
+      return !!presignedFileUrl
     case "VIDEO":
-      return !!(asset.externalLink || asset.fileUrl)
+      return !!(externalLink || presignedFileUrl)
     case "CAMPAIGN":
-      return !!(asset.fileUrl || asset.externalLink || asset.campaignLink)
+      return !!(presignedFileUrl || externalLink || campaignLink)
     case "ASSET":
-      return !!(asset.externalLink || asset.fileUrl)
+      return !!(externalLink || presignedFileUrl)
     default:
       return false
   }

@@ -9,6 +9,7 @@ import {
   Star,
 } from "lucide-react"
 import { AdminDashboardClient } from "./AdminDashboardClient"
+import { fetchAdminAssets } from "@/lib/adminAssets"
 
 export default async function AdminDashboardPage() {
   const [assetCount, docsCount, teamCount, featuredCount] = await Promise.all([
@@ -53,7 +54,7 @@ export default async function AdminDashboardPage() {
     },
   ]
 
-  const recentAssets = await prisma.asset.findMany({
+  const recentAssets = await fetchAdminAssets({
     orderBy: { createdAt: "desc" },
     take: 5,
   })

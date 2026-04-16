@@ -5,23 +5,59 @@
 // Asset types matching Prisma schema
 export type AssetType = "DECK" | "CAMPAIGN" | "ASSET" | "VIDEO"
 
+// One language version of an asset (file or link)
+export interface AssetVariant {
+  id: string
+  assetId: string
+  language: string // "EN", "FR", "DE", "NL"
+  fileUrl: string | null
+  fileType: string | null
+  fileSize: number | null
+  externalLink: string | null
+  displayOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+// Shape sent to the admin API when creating/updating variants (no id for new rows)
+export interface AssetVariantInput {
+  id?: string
+  language: string
+  fileUrl?: string | null
+  fileType?: string | null
+  fileSize?: number | null
+  externalLink?: string | null
+  displayOrder?: number
+}
+
 export interface Asset {
   id: string
   type: AssetType
   title: string
   description: string | null
-  fileUrl: string | null
   thumbnailUrl: string | null
   blurDataUrl: string | null
+
+  // Languages available for this asset (denormalized from variants, used for filtering)
+  availableLanguages: string[]
+
+  // Language variants — one per language version
+  variants?: AssetVariant[]
+
+  // LEGACY file fields — still present on Asset during expand phase.
+  // Dual-populated from the default variant. Read-only for new code;
+  // dropped in a follow-up migration after production bake.
+  fileUrl: string | null
+  thumbnailPresigned?: string | null
   fileType: string | null
   fileSize: number | null
+  externalLink: string | null
+
   region: string[]
-  language: string[]
   persona: string[]
   campaignGoal: string | null
   campaignLink: string | null
   templateContent: string | null
-  externalLink: string | null
   sentAt: string | null
   createdAt: string
   updatedAt: string
@@ -66,9 +102,11 @@ export interface SearchResult {
   description?: string | null
   thumbnailUrl?: string | null
   blurDataUrl?: string | null
+  // Default variant fields (pre-resolved server-side so the drawer has something to show immediately)
   fileUrl?: string | null
   externalLink?: string | null
-  language?: string[]
+  availableLanguages?: string[]
+  variants?: AssetVariant[]
   persona?: string[]
   campaignGoal?: string | null
   sentAt?: string | null
@@ -97,9 +135,15 @@ export interface AssetInfo {
   category?: string
   thumbnailUrl?: string | null
   blurDataUrl?: string | null
+
+  // Default variant, pre-resolved server-side
   fileUrl?: string | null
   externalLink?: string | null
-  language?: string[]
+
+  // All variants, so the drawer can render a language toggle
+  variants?: AssetVariant[]
+  availableLanguages?: string[]
+
   persona?: string[]
   campaignGoal?: string | null
   sentAt?: string | null

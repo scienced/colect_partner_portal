@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { GridSkeleton } from "@/components/portal/GridSkeleton"
+import { LanguageFilter } from "@/components/portal/LanguageFilter"
 import { FileText, Download, ExternalLink } from "lucide-react"
 import { useDecks } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -16,8 +17,25 @@ import type { AssetInfo } from "@/types"
 
 export default function DecksPage() {
   const { data, isLoading, error } = useDecks()
-  const decks = useMemo(() => data?.assets || [], [data])
+  const allDecks = useMemo(() => data?.assets || [], [data])
   const { trackAssetDownload } = useAnalytics()
+
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+
+  const allLanguages = useMemo(() => {
+    const set = new Set<string>()
+    for (const a of allDecks) {
+      for (const l of a.availableLanguages || []) set.add(l)
+    }
+    return Array.from(set)
+  }, [allDecks])
+
+  const decks = useMemo(() => {
+    if (!languageFilter) return allDecks
+    return allDecks.filter((a: any) =>
+      (a.availableLanguages || []).includes(languageFilter)
+    )
+  }, [allDecks, languageFilter])
 
   const transformDeck = useCallback((deck: any): AssetInfo => ({
     id: deck.id,
@@ -28,7 +46,7 @@ export default function DecksPage() {
     thumbnailUrl: deck.thumbnailUrl,
     fileUrl: deck.fileUrl,
     externalLink: deck.externalLink,
-    language: deck.language,
+    availableLanguages: deck.availableLanguages,
     persona: deck.persona,
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt,
@@ -46,6 +64,12 @@ export default function DecksPage() {
       <PageHeader
         title="Sales Decks"
         description="Browse and download sales presentations"
+      />
+
+      <LanguageFilter
+        availableLanguages={allLanguages}
+        activeLanguage={languageFilter}
+        onChange={setLanguageFilter}
       />
 
       {isLoading ? (
@@ -94,9 +118,9 @@ export default function DecksPage() {
                     {deck.description}
                   </p>
                 )}
-                {deck.language?.length > 0 && (
+                {deck.availableLanguages?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {deck.language.map((l: string) => (
+                    {deck.availableLanguages.map((l: string) => (
                       <StatusBadge key={l} status="info">
                         {l}
                       </StatusBadge>

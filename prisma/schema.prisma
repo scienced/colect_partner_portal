@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // Enum for asset types
@@ -40,11 +41,12 @@ model AnalyticsEvent {
   userDomain  String
 
   // Event context
-  pagePath    String?
-  assetId     String?
-  assetTitle  String?
-  assetType   String?
-  searchQuery String?
+  pagePath      String?
+  assetId       String?
+  assetTitle    String?
+  assetType     String?
+  assetLanguage String? // Which language variant was clicked/downloaded
+  searchQuery   String?
 
   createdAt   DateTime @default(now())
 
@@ -76,26 +78,38 @@ model Asset {
   title       String
   description String?
 
-  // File information
-  fileUrl      String?
+  // Thumbnail (shared across language variants)
   thumbnailUrl String?
   blurDataUrl  String?  // Tiny base64 blur placeholder for image loading
+
+  // LEGACY file fields — kept for the expand phase of the two-phase migration.
+  // New writes dual-populate these from the default variant until Migration 2
+  // (drop_legacy_asset_file_columns) removes them after the production bake.
+  fileUrl      String?
   fileType     String?
   fileSize     Int?
+  externalLink String?
 
   // Metadata filters
-  region   String[] // e.g., ["EMEA", "APAC", "Americas"]
-  language String[] // e.g., ["en", "nl", "de"]
-  persona  String[] // e.g., ["Sales", "Marketing", "Technical"]
+  region  String[] // e.g., ["EMEA", "APAC", "Americas"]
+  persona String[] // e.g., ["Sales", "Marketing", "Technical"]
+
+  // Denormalized projection of variants.map(v => v.language) — written by the
+  // admin API on every asset create/update so the existing `{ has: language }`
+  // filter query on category pages stays efficient (GIN-indexed).
+  //
+  // NOTE: during the initial expand-phase backfill (migration 20260415120000),
+  // legacy multi-language assets with a single fileUrl were collapsed to the
+  // first language only. Assets without any fileUrl/externalLink kept their
+  // legacy language tags (uppercased) but have no variants. Admins should
+  // upload missing language versions via the admin form tabs.
+  availableLanguages String[]
 
   // Campaign-specific fields
   campaignGoal    String?
   campaignLink    String?
   templateContent String?
   sentAt          DateTime?  // When the campaign email was/will be sent
-
-  // Asset-specific fields
-  externalLink String?
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -109,6 +123,7 @@ model Asset {
   pinOrder     Int       @default(0)
 
   // Relations
+  variants   AssetVariant[]
   changelogs Changelog[]
   featuredIn FeaturedContent[]
 
@@ -117,6 +132,25 @@ model Asset {
   @@index([updatedAt])
   @@index([publishedAt])
   @@index([type, isPinned])
+}
+
+// Per-language file/link version of an Asset. One row = one translation.
+model AssetVariant {
+  id           String   @id @default(uuid())
+  assetId      String
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  language     String   // "EN", "FR", "DE", "NL"
+  fileUrl      String?
+  fileType     String?
+  fileSize     Int?
+  externalLink String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([assetId, language])
+  @@index([assetId])
+  @@index([language])
 }
 
 // Documentation updates

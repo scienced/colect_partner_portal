@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Asset, AssetType } from "@prisma/client"
+import type { AdminAsset } from "@/lib/adminAssets"
 import { Card } from "@/components/ui/Card"
 import { Button, IconButton } from "@/components/ui/Button"
 import { Input, Textarea, Checkbox } from "@/components/ui/Input"
@@ -21,7 +22,7 @@ import {
 } from "lucide-react"
 
 interface AdminDashboardClientProps {
-  recentAssets: Asset[]
+  recentAssets: AdminAsset[]
 }
 
 const assetTypeIcons: Record<string, React.ReactNode> = {
@@ -37,7 +38,7 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
   // Asset form state
   const [showAssetForm, setShowAssetForm] = useState(false)
   const [assetFormType, setAssetFormType] = useState<AssetType>("DECK")
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
+  const [editingAsset, setEditingAsset] = useState<AdminAsset | null>(null)
 
   // Docs update form state
   const [showDocsForm, setShowDocsForm] = useState(false)
@@ -59,7 +60,7 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
     setShowAssetForm(true)
   }
 
-  const openEditAssetForm = (asset: Asset) => {
+  const openEditAssetForm = (asset: AdminAsset) => {
     setEditingAsset(asset)
     setShowAssetForm(true)
   }

@@ -10,6 +10,7 @@ const eventSchema = z.object({
   assetId: z.string().optional(),
   assetTitle: z.string().optional(),
   assetType: z.string().optional(),
+  assetLanguage: z.string().optional(),
   searchQuery: z.string().optional(),
 })
 
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
       assetId: validated.assetId,
       assetTitle: validated.assetTitle,
       assetType: validated.assetType,
+      assetLanguage: validated.assetLanguage,
       searchQuery: validated.searchQuery,
     })
 

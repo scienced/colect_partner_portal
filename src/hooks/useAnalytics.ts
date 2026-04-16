@@ -10,6 +10,7 @@ interface TrackEventOptions {
   assetId?: string
   assetTitle?: string
   assetType?: string
+  assetLanguage?: string
   searchQuery?: string
 }
 
@@ -62,13 +63,14 @@ export function useAnalytics() {
   )
 
   const trackAssetClick = useCallback(
-    (assetId: string, assetTitle: string, assetType: string) => {
+    (assetId: string, assetTitle: string, assetType: string, assetLanguage?: string) => {
       // Use sendBeacon to ensure tracking completes even when navigating away
       const sent = sendBeaconEvent({
         type: "ASSET_CLICK",
         assetId,
         assetTitle,
         assetType,
+        assetLanguage,
       })
       // Fallback to fetch if sendBeacon fails
       if (!sent) {
@@ -77,6 +79,7 @@ export function useAnalytics() {
           assetId,
           assetTitle,
           assetType,
+          assetLanguage,
         })
       }
     },
@@ -84,13 +87,14 @@ export function useAnalytics() {
   )
 
   const trackAssetDownload = useCallback(
-    (assetId: string, assetTitle: string, assetType: string) => {
+    (assetId: string, assetTitle: string, assetType: string, assetLanguage?: string) => {
       // Use sendBeacon to ensure tracking completes even when navigating away
       const sent = sendBeaconEvent({
         type: "ASSET_DOWNLOAD",
         assetId,
         assetTitle,
         assetType,
+        assetLanguage,
       })
       // Fallback to fetch if sendBeacon fails
       if (!sent) {
@@ -99,6 +103,7 @@ export function useAnalytics() {
           assetId,
           assetTitle,
           assetType,
+          assetLanguage,
         })
       }
     },

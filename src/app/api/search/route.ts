@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/supertokens/session"
 import { trackSearchQuery } from "@/lib/analytics"
 import { getPresignedUrls } from "@/lib/s3"
+import { defaultVariant } from "@/lib/assetVariants"
 
 // Helper to generate YouTube thumbnail from URL
 function getYouTubeThumbnail(url: string | null): string | null {
@@ -63,14 +64,24 @@ export async function GET(request: NextRequest) {
           description: true,
           thumbnailUrl: true,
           blurDataUrl: true,
-          fileUrl: true,
-          externalLink: true,
-          language: true,
+          availableLanguages: true,
           persona: true,
           campaignGoal: true,
           sentAt: true,
           createdAt: true,
           updatedAt: true,
+          variants: {
+            select: {
+              id: true,
+              language: true,
+              fileUrl: true,
+              fileType: true,
+              fileSize: true,
+              externalLink: true,
+              displayOrder: true,
+            },
+            orderBy: [{ displayOrder: "asc" }, { language: "asc" }],
+          },
         },
       }),
       prisma.docsUpdate.findMany({
@@ -131,18 +142,21 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    // Batch presign all S3 URLs at once
-    const thumbnailUrls = assets.map(a => a.thumbnailUrl)
-    const fileUrls = assets.map(a => a.fileUrl)
+    // Batch presign: thumbnails + default variant's file per asset.
+    // Non-default variants are presigned on-demand via the drawer endpoint.
+    const thumbnailUrls = assets.map((a) => a.thumbnailUrl)
+    const defaultFileUrls = assets.map((a) => defaultVariant(a.variants)?.fileUrl ?? null)
     const [presignedThumbnails, presignedFiles] = await Promise.all([
       getPresignedUrls(thumbnailUrls),
-      getPresignedUrls(fileUrls),
+      getPresignedUrls(defaultFileUrls),
     ])
 
     // Format results with categories
     const assetResults = assets.map((a, i) => {
-      const thumbnailUrl = presignedThumbnails[i]
-        ?? (a.type === "VIDEO" ? getYouTubeThumbnail(a.externalLink) : null)
+      const def = defaultVariant(a.variants)
+      const externalLink = def?.externalLink ?? null
+      const thumbnailUrl =
+        presignedThumbnails[i] ?? (a.type === "VIDEO" ? getYouTubeThumbnail(externalLink) : null)
 
       return {
         id: a.id,
@@ -150,14 +164,22 @@ export async function GET(request: NextRequest) {
         subtitle: a.description?.slice(0, 60) || a.type,
         category: "asset" as const,
         type: a.type,
-        href: a.type === "DECK" ? "/decks" : a.type === "CAMPAIGN" ? "/campaigns" : a.type === "VIDEO" ? "/videos" : "/assets",
+        href:
+          a.type === "DECK"
+            ? "/decks"
+            : a.type === "CAMPAIGN"
+            ? "/campaigns"
+            : a.type === "VIDEO"
+            ? "/videos"
+            : "/assets",
         // Full asset data for drawer
         description: a.description,
         thumbnailUrl,
         blurDataUrl: a.blurDataUrl,
         fileUrl: presignedFiles[i],
-        externalLink: a.externalLink,
-        language: a.language,
+        externalLink,
+        availableLanguages: a.availableLanguages,
+        variants: a.variants,
         persona: a.persona,
         campaignGoal: a.campaignGoal,
         sentAt: a.sentAt?.toISOString() || null,

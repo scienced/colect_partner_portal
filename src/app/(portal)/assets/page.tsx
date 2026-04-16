@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import Image from "next/image"
-import { PageHeader } from "@/components/layout/SectionHeader"
+import { PageHeader, StatusBadge } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { GridSkeleton } from "@/components/portal/GridSkeleton"
+import { LanguageFilter } from "@/components/portal/LanguageFilter"
 import { FolderOpen, ExternalLink, Download } from "lucide-react"
 import { useGeneralAssets } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -15,8 +16,27 @@ import type { AssetInfo } from "@/types"
 
 export default function AssetsPage() {
   const { data, isLoading, error } = useGeneralAssets()
-  const assets = useMemo(() => data?.assets || [], [data])
+  const allAssets = useMemo(() => data?.assets || [], [data])
   const { trackAssetDownload, trackAssetClick } = useAnalytics()
+
+  // Client-side language filter
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+
+  // Union of all available languages across the visible assets
+  const allLanguages = useMemo(() => {
+    const set = new Set<string>()
+    for (const a of allAssets) {
+      for (const l of a.availableLanguages || []) set.add(l)
+    }
+    return Array.from(set)
+  }, [allAssets])
+
+  const assets = useMemo(() => {
+    if (!languageFilter) return allAssets
+    return allAssets.filter((a: any) =>
+      (a.availableLanguages || []).includes(languageFilter)
+    )
+  }, [allAssets, languageFilter])
 
   const transformAsset = useCallback((asset: any): AssetInfo => ({
     id: asset.id,
@@ -27,7 +47,7 @@ export default function AssetsPage() {
     thumbnailUrl: asset.thumbnailUrl,
     fileUrl: asset.fileUrl,
     externalLink: asset.externalLink,
-    language: asset.language,
+    availableLanguages: asset.availableLanguages,
     persona: asset.persona,
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
@@ -49,6 +69,12 @@ export default function AssetsPage() {
       <PageHeader
         title="Assets & Links"
         description="Logos, marketing materials, and useful links"
+      />
+
+      <LanguageFilter
+        availableLanguages={allLanguages}
+        activeLanguage={languageFilter}
+        onChange={setLanguageFilter}
       />
 
       {isLoading ? (
@@ -96,6 +122,13 @@ export default function AssetsPage() {
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                     {asset.description}
                   </p>
+                )}
+                {asset.availableLanguages && asset.availableLanguages.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {asset.availableLanguages.map((l: string) => (
+                      <StatusBadge key={l} status="info">{l}</StatusBadge>
+                    ))}
+                  </div>
                 )}
                 <div className="flex items-center gap-3 mt-auto pt-4">
                   {asset.fileUrl && (

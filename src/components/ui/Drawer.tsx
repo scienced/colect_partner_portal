@@ -6,7 +6,9 @@ import {
   type ReactNode,
   useEffect,
   useCallback,
+  useState,
 } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -46,6 +48,13 @@ export const Drawer = forwardRef<HTMLDivElement, DrawerProps>(
     },
     ref
   ) => {
+    // Mount guard for createPortal — on first server render, document
+    // doesn't exist, so we delay the portal until we're in the browser.
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => {
+      setMounted(true)
+    }, [])
+
     const handleKeyDown = useCallback(
       (event: KeyboardEvent) => {
         if (event.key === "Escape" && closeOnEscape) {
@@ -67,7 +76,9 @@ export const Drawer = forwardRef<HTMLDivElement, DrawerProps>(
       }
     }, [open, handleKeyDown])
 
-    return (
+    if (!mounted) return null
+
+    const drawerContent = (
       <>
         {/* Overlay */}
         <div
@@ -143,6 +154,13 @@ export const Drawer = forwardRef<HTMLDivElement, DrawerProps>(
         </div>
       </>
     )
+
+    // Render via portal so the drawer escapes any ancestor containing blocks
+    // (transforms, filters, overflow+transform combos). This is the standard
+    // pattern for modals/drawers and fixes the "category page drawer layout
+    // differs from homepage" bug where the drawer was being positioned
+    // relative to <main className="overflow-auto"> instead of the viewport.
+    return createPortal(drawerContent, document.body)
   }
 )
 

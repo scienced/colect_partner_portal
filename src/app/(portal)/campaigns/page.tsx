@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { GridSkeleton } from "@/components/portal/GridSkeleton"
+import { LanguageFilter } from "@/components/portal/LanguageFilter"
 import { Mail, ExternalLink, Calendar } from "lucide-react"
 import { useCampaigns } from "@/lib/swr"
 import { cn, getDateStatus } from "@/lib/utils"
@@ -17,8 +18,25 @@ import type { AssetInfo } from "@/types"
 
 export default function CampaignsPage() {
   const { data, isLoading, error } = useCampaigns()
-  const campaigns = useMemo(() => data?.assets || [], [data])
+  const allCampaigns = useMemo(() => data?.assets || [], [data])
   const { trackAssetDownload } = useAnalytics()
+
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+
+  const allLanguages = useMemo(() => {
+    const set = new Set<string>()
+    for (const a of allCampaigns) {
+      for (const l of a.availableLanguages || []) set.add(l)
+    }
+    return Array.from(set)
+  }, [allCampaigns])
+
+  const campaigns = useMemo(() => {
+    if (!languageFilter) return allCampaigns
+    return allCampaigns.filter((a: any) =>
+      (a.availableLanguages || []).includes(languageFilter)
+    )
+  }, [allCampaigns, languageFilter])
 
   const transformCampaign = useCallback((campaign: any): AssetInfo => ({
     id: campaign.id,
@@ -29,7 +47,7 @@ export default function CampaignsPage() {
     thumbnailUrl: campaign.thumbnailUrl,
     fileUrl: campaign.fileUrl,
     externalLink: campaign.externalLink || campaign.campaignLink,
-    language: campaign.language,
+    availableLanguages: campaign.availableLanguages,
     persona: campaign.persona,
     campaignGoal: campaign.campaignGoal,
     sentAt: campaign.sentAt,
@@ -49,6 +67,12 @@ export default function CampaignsPage() {
       <PageHeader
         title="Campaigns & Emails"
         description="Email templates and campaign materials"
+      />
+
+      <LanguageFilter
+        availableLanguages={allLanguages}
+        activeLanguage={languageFilter}
+        onChange={setLanguageFilter}
       />
 
       {isLoading ? (
@@ -144,7 +168,7 @@ function CampaignCard({
           </p>
         )}
 
-        {((formattedDate && dateStatus) || campaign.language?.length > 0) && (
+        {((formattedDate && dateStatus) || campaign.availableLanguages?.length > 0) && (
           <div className="flex flex-wrap items-center gap-2 mt-3">
             {formattedDate && dateStatus && (
               <span
@@ -157,7 +181,7 @@ function CampaignCard({
                 {dateStatus === "past" ? "Sent" : "Scheduled"}: {formattedDate}
               </span>
             )}
-            {campaign.language?.map((l: string) => (
+            {campaign.availableLanguages?.map((l: string) => (
               <StatusBadge key={l} status="info">
                 {l}
               </StatusBadge>

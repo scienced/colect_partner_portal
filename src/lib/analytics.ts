@@ -9,6 +9,7 @@ interface TrackEventParams {
   assetId?: string
   assetTitle?: string
   assetType?: string
+  assetLanguage?: string
   searchQuery?: string
 }
 
@@ -36,6 +37,7 @@ export async function trackEvent(params: TrackEventParams) {
       assetId: params.assetId,
       assetTitle: params.assetTitle,
       assetType: params.assetType,
+      assetLanguage: params.assetLanguage,
       searchQuery: params.searchQuery,
     },
   })
@@ -65,7 +67,8 @@ export async function trackAssetClick(
   userEmail: string,
   assetId: string,
   assetTitle: string,
-  assetType: string
+  assetType: string,
+  assetLanguage?: string
 ) {
   return trackEvent({
     type: "ASSET_CLICK",
@@ -74,6 +77,7 @@ export async function trackAssetClick(
     assetId,
     assetTitle,
     assetType,
+    assetLanguage,
   })
 }
 
@@ -85,7 +89,8 @@ export async function trackAssetDownload(
   userEmail: string,
   assetId: string,
   assetTitle: string,
-  assetType: string
+  assetType: string,
+  assetLanguage?: string
 ) {
   return trackEvent({
     type: "ASSET_DOWNLOAD",
@@ -94,6 +99,7 @@ export async function trackAssetDownload(
     assetId,
     assetTitle,
     assetType,
+    assetLanguage,
   })
 }
 

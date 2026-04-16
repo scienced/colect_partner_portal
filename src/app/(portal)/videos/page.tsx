@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import Image from "next/image"
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
 import { GridSkeleton } from "@/components/portal/GridSkeleton"
+import { LanguageFilter } from "@/components/portal/LanguageFilter"
 import { Play, ExternalLink } from "lucide-react"
 import { useVideos } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
@@ -17,8 +18,25 @@ import type { AssetInfo } from "@/types"
 
 export default function VideosPage() {
   const { data, isLoading, error } = useVideos()
-  const videos = useMemo(() => data?.assets || [], [data])
+  const allVideos = useMemo(() => data?.assets || [], [data])
   const { trackAssetClick } = useAnalytics()
+
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+
+  const allLanguages = useMemo(() => {
+    const set = new Set<string>()
+    for (const a of allVideos) {
+      for (const l of a.availableLanguages || []) set.add(l)
+    }
+    return Array.from(set)
+  }, [allVideos])
+
+  const videos = useMemo(() => {
+    if (!languageFilter) return allVideos
+    return allVideos.filter((a: any) =>
+      (a.availableLanguages || []).includes(languageFilter)
+    )
+  }, [allVideos, languageFilter])
 
   const transformVideo = useCallback((video: any): AssetInfo => ({
     id: video.id,
@@ -29,7 +47,7 @@ export default function VideosPage() {
     thumbnailUrl: video.thumbnailUrl || getYouTubeThumbnail(video.externalLink),
     fileUrl: video.fileUrl,
     externalLink: video.externalLink,
-    language: video.language,
+    availableLanguages: video.availableLanguages,
     persona: video.persona,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
@@ -47,6 +65,12 @@ export default function VideosPage() {
       <PageHeader
         title="Videos"
         description="Training videos and product demonstrations"
+      />
+
+      <LanguageFilter
+        availableLanguages={allLanguages}
+        activeLanguage={languageFilter}
+        onChange={setLanguageFilter}
       />
 
       {isLoading ? (
@@ -122,9 +146,9 @@ export default function VideosPage() {
                       {video.description}
                     </p>
                   )}
-                  {video.language?.length > 0 && (
+                  {video.availableLanguages?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {video.language.map((l: string) => (
+                      {video.availableLanguages.map((l: string) => (
                         <StatusBadge key={l} status="info">
                           {l}
                         </StatusBadge>
