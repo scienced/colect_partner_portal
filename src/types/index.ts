@@ -69,16 +69,27 @@ export interface Asset {
   pinOrder?: number
 }
 
-// Docs update matching Prisma schema
+// Docs update — either a manual Prisma row or an auto-fetched GitBook page.
+// The homepage API merges both into one list, discriminated by `source`.
 export interface DocsUpdate {
   id: string
   title: string
-  summary: string
+  // Manual entries always have a summary; auto entries have null.
+  summary: string | null
   deepLink: string
   category: string | null
   createdAt: string
   updatedAt: string
   publishedAt: string | null
+  // Which origin the item came from. Absent = legacy response (manual).
+  source?: "manual" | "gitbook"
+  // Only set on gitbook source: "User docs" / "Admin docs" (high-level group).
+  spaceLabel?: string | null
+  // Only set on gitbook source: specific space name (e.g., "Creator Studio").
+  spaceName?: string | null
+  // Only set on gitbook source: true when page has never been edited since
+  // creation (createdAt ≈ updatedAt), false for edited pages.
+  isNew?: boolean
   // Pinning
   isPinned?: boolean
   pinnedAt?: string | null
@@ -149,6 +160,14 @@ export interface AssetInfo {
   sentAt?: string | null
   createdAt: string
   updatedAt: string
+
+  // Docs-specific fields (when type === "DOCS" from the GitBook auto-feed).
+  // Manual DocsUpdate entries don't populate these — they use `description`
+  // and `category` on the Asset-like shape.
+  source?: "manual" | "gitbook"
+  spaceLabel?: string | null
+  spaceName?: string | null
+  isNew?: boolean
 }
 
 // Asset data structure used in the drawer component (alias for backwards compat)

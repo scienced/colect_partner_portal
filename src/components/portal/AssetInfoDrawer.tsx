@@ -140,6 +140,8 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
   // Fetch the presigned URL for a non-default variant when the user switches to it.
   useEffect(() => {
     if (!asset || !activeLanguage) return
+    // DOCS items never have asset variants — don't try to fetch them.
+    if (asset.type === "DOCS") return
     if (variantCache[activeLanguage]) return
     // No cached entry yet — fetch it.
     let cancelled = false
@@ -268,74 +270,116 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
               )}
             </div>
 
-            {/* Language Toggle (visible when more than one language is available) */}
-            {hasLanguageToggle && (
-              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-                {availableLanguages.map((lang: string) => {
-                  const isActive = lang === activeLanguage
-                  return (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => changeLanguage(lang)}
-                      className={cn(
-                        "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-                        isActive
-                          ? "bg-white text-primary shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      )}
+            {/* DOCS — documentation entries get a single "Open Documentation"
+                CTA and a clear origin line. No language toggle, no variant
+                fetching (docs have neither). */}
+            {asset.type === "DOCS" ? (
+              <>
+                {asset.spaceLabel && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <BookOpen className="w-4 h-4" />
+                    <span>
+                      From <span className="font-medium text-gray-700">{asset.spaceLabel}</span>
+                      {asset.spaceName && asset.spaceName !== asset.spaceLabel
+                        ? ` · ${asset.spaceName}`
+                        : ""}
+                    </span>
+                    {asset.isNew && (
+                      <span className="ml-1 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-50 text-green-700">
+                        New
+                      </span>
+                    )}
+                  </div>
+                )}
+                {asset.externalLink && (
+                  <div>
+                    <a
+                      href={asset.externalLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-primary text-white hover:bg-primary/90"
+                      onMouseDown={() =>
+                        trackAssetClick(asset.id, asset.title, asset.type)
+                      }
                     >
-                      {lang}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+                      <ExternalLink className="w-4 h-4" />
+                      Open Documentation
+                    </a>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Language Toggle (visible when more than one language is available) */}
+                {hasLanguageToggle && (
+                  <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
+                    {availableLanguages.map((lang: string) => {
+                      const isActive = lang === activeLanguage
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => changeLanguage(lang)}
+                          className={cn(
+                            "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                            isActive
+                              ? "bg-white text-primary shadow-sm"
+                              : "text-gray-600 hover:text-gray-900"
+                          )}
+                        >
+                          {lang}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
 
-            {/* Quick Actions — reflect the currently selected language variant */}
-            <div className="flex flex-wrap gap-2">
-              {active.fileUrl && (
-                <a
-                  href={active.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                    variantLoading
-                      ? "bg-primary/60 text-white cursor-wait"
-                      : "bg-primary text-white hover:bg-primary/90"
+                {/* Quick Actions — reflect the currently selected language variant */}
+                <div className="flex flex-wrap gap-2">
+                  {active.fileUrl && (
+                    <a
+                      href={active.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                        variantLoading
+                          ? "bg-primary/60 text-white cursor-wait"
+                          : "bg-primary text-white hover:bg-primary/90"
+                      )}
+                      onMouseDown={() =>
+                        trackAssetDownload(asset.id, asset.title, asset.type, activeLanguage)
+                      }
+                    >
+                      <Download className="w-4 h-4" />
+                      Download{getFileExtension(active.fileUrl) ? ` ${getFileExtension(active.fileUrl)}` : ""}
+                    </a>
                   )}
-                  onMouseDown={() =>
-                    trackAssetDownload(asset.id, asset.title, asset.type, activeLanguage)
-                  }
-                >
-                  <Download className="w-4 h-4" />
-                  Download{getFileExtension(active.fileUrl) ? ` ${getFileExtension(active.fileUrl)}` : ""}
-                </a>
-              )}
-              {active.externalLink && (
-                <a
-                  href={active.externalLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                    active.fileUrl
-                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      : "bg-primary text-white hover:bg-primary/90"
+                  {active.externalLink && (
+                    <a
+                      href={active.externalLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                        active.fileUrl
+                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-primary text-white hover:bg-primary/90"
+                      )}
+                      onMouseDown={() =>
+                        trackAssetClick(asset.id, asset.title, asset.type, activeLanguage)
+                      }
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      {category === "deck" ? "View Slides" : "Open Link"}
+                    </a>
                   )}
-                  onMouseDown={() =>
-                    trackAssetClick(asset.id, asset.title, asset.type, activeLanguage)
-                  }
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  {category === "deck" ? "View Slides" : "Open Link"}
-                </a>
-              )}
-              {!active.fileUrl && !active.externalLink && variantLoading && (
-                <span className="text-sm text-gray-500">Loading {activeLanguage} version…</span>
-              )}
-            </div>
+                  {!active.fileUrl && !active.externalLink && variantLoading && (
+                    <span className="text-sm text-gray-500">Loading {activeLanguage} version…</span>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Metadata Grid */}
             <div className="grid grid-cols-2 gap-4">

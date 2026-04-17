@@ -42,7 +42,7 @@ export default function HomePage() {
     title: string
     type?: string
     description?: string | null
-    summary?: string
+    summary?: string | null
     thumbnailUrl?: string | null
     fileUrl?: string | null
     externalLink?: string | null
@@ -243,6 +243,10 @@ export default function HomePage() {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     isPinned: doc.isPinned,
+    source: doc.source,
+    spaceLabel: doc.spaceLabel ?? undefined,
+    spaceName: doc.spaceName ?? undefined,
+    isNew: doc.isNew,
   }))
 
   const recentItems: ContentItem[] = recentlyUpdated.map((item) => {
@@ -438,6 +442,11 @@ export default function HomePage() {
           sentAt: selectedAsset.sentAt,
           createdAt: selectedAsset.createdAt || new Date().toISOString(),
           updatedAt: selectedAsset.updatedAt || new Date().toISOString(),
+          // Docs-specific fields (propagated for the drawer's DOCS branch)
+          source: selectedAsset.source,
+          spaceLabel: selectedAsset.spaceLabel ?? null,
+          spaceName: selectedAsset.spaceName ?? null,
+          isNew: selectedAsset.isNew,
         } : null}
         open={drawerOpen}
         onClose={handleDrawerClose}

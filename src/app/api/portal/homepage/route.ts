@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
 import { defaultVariant } from "@/lib/assetVariants"
+import { getRecentlyUpdatedGitBookPages, normalizeDocUrl } from "@/lib/gitbook"
 
 // Shared variant shape re-used in every select below.
 const variantSelect = {
@@ -97,9 +98,10 @@ export async function GET() {
       latestVideos,
       latestCampaigns,
       latestAssets,
-      docsUpdates,
+      manualDocs,
       recentAssets,
       recentDocs,
+      gitbookDocs,
     ] = await Promise.all([
       prisma.featuredContent.findMany({
         where: {
@@ -153,6 +155,10 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
         take: 10,
       }),
+      // Auto-fetched GitBook pages (feature-flagged; returns [] if env
+      // vars missing or GitBook unreachable). Fetch slightly more than we
+      // show so URL-dedup with manual entries still leaves enough items.
+      getRecentlyUpdatedGitBookPages(20),
     ])
 
     // Process pins (filter expired, re-sort) for each type
@@ -160,6 +166,58 @@ export async function GET() {
     const processedVideos = processAssetPins(latestVideos)
     const processedCampaigns = processAssetPins(latestCampaigns)
     const processedAssets = processAssetPins(latestAssets)
+
+    // Merge manual docs updates with auto-fetched GitBook pages.
+    // Rules:
+    //   - Manual entries preserve their pinning behavior and always appear first.
+    //   - GitBook entries are never pinned; they're sorted by their updatedAt.
+    //   - URL-normalized dedup: if a manual entry covers the same page as a
+    //     GitBook entry, hide the GitBook one (the manual one has a summary).
+    const manualUrls = new Set(
+      manualDocs.map((d) => normalizeDocUrl(d.deepLink))
+    )
+    const autoItems = gitbookDocs
+      .filter((g) => !manualUrls.has(normalizeDocUrl(g.url)))
+      .map((g) => ({
+        id: g.id,
+        title: g.title,
+        // Expose description as "summary" so downstream UI (which reads
+        // summary/description) renders it uniformly.
+        summary: g.description,
+        deepLink: g.url,
+        category: null as string | null,
+        createdAt: g.publishedAt,
+        updatedAt: g.publishedAt,
+        publishedAt: g.publishedAt,
+        isPinned: false,
+        pinnedAt: null,
+        pinExpiresAt: null,
+        pinOrder: 0,
+        source: "gitbook" as const,
+        spaceLabel: g.space.label,
+        spaceName: g.space.name,
+        isNew: g.isNew,
+      }))
+    const manualItems = manualDocs.map((d) => ({
+      ...d,
+      source: "manual" as const,
+      spaceLabel: null as string | null,
+      spaceName: null as string | null,
+      isNew: false,
+    }))
+    // Sort: pinned manual first, then everything else by publishedAt desc.
+    const docsUpdates = [...manualItems, ...autoItems]
+      .sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1
+        if (!a.isPinned && b.isPinned) return 1
+        if (a.isPinned && b.isPinned) {
+          if (a.pinOrder !== b.pinOrder) return b.pinOrder - a.pinOrder
+        }
+        const aDate = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
+        const bDate = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
+        return bDate - aDate
+      })
+      .slice(0, 8)
 
     // Resolve the default variant for every asset in one pass so downstream
     // code can use pre-resolved fileUrl/externalLink. The full `variants`

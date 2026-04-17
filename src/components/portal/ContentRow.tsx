@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Calendar } from "lucide-react"
+import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Calendar, Sparkles } from "lucide-react"
 import { cn, getDateStatus } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
@@ -24,6 +24,18 @@ export interface ContentItem {
   status?: "new" | "updated"
   availableLanguages?: string[]
   persona?: string[]
+  /** For docs-category items: distinguishes auto-fetched GitBook entries
+   *  from curated manual entries so the UI can render them differently. */
+  source?: "manual" | "gitbook"
+  /** For docs items from gitbook: high-level group label
+   *  (e.g., "User docs" / "Admin docs"). */
+  spaceLabel?: string
+  /** For docs items from gitbook: specific space name
+   *  (e.g., "Creator Studio" or "SOAP API"). */
+  spaceName?: string
+  /** For docs items from gitbook: true when the page has never been edited
+   *  since creation. Manual entries ignore this. */
+  isNew?: boolean
   campaignGoal?: string | null
   sentAt?: string | null
   createdAt?: string
@@ -240,6 +252,13 @@ function ContentCard({
   const externalLinkHref = item.externalLink || item.href
 
   if (variant === "docs") {
+    const isGitBook = item.source === "gitbook"
+    // Prefer the specific space name when it differs from the group label
+    // (e.g., "Creator Studio" vs "User docs"). Otherwise just show the group.
+    const gitbookOrigin =
+      item.spaceName && item.spaceLabel && item.spaceName !== item.spaceLabel
+        ? `${item.spaceLabel} · ${item.spaceName}`
+        : item.spaceLabel || item.spaceName || null
     return (
       <div
         className={cn(
@@ -251,19 +270,36 @@ function ContentCard({
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && handleCardClick()}
       >
-        {/* Pinned Badge */}
-        {item.isPinned && (
+        {/* Pinned Badge (manual entries only) */}
+        {item.isPinned && !isGitBook && (
           <div className="absolute top-2 right-2 z-10">
             <PinnedBadge />
           </div>
         )}
+        {/* New badge (gitbook entries with createdAt==updatedAt) */}
+        {isGitBook && item.isNew && (
+          <div className="absolute top-2 right-2 z-10">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-50 text-green-700">
+              <Plus className="w-3 h-3" />
+              New
+            </span>
+          </div>
+        )}
         <div className="p-4">
           <div className="flex gap-4">
-            <div className={cn(
-              "w-12 h-12 rounded-lg bg-gradient-to-br flex-shrink-0 flex items-center justify-center",
-              gradientColor
-            )}>
-              <BookOpen className="w-6 h-6 text-white" />
+            {/* Icon tile — amber gradient for curated manual entries,
+                muted slate gradient + Sparkles icon for auto-fetched ones. */}
+            <div
+              className={cn(
+                "w-12 h-12 rounded-lg bg-gradient-to-br flex-shrink-0 flex items-center justify-center",
+                isGitBook ? "from-slate-400 to-slate-600" : gradientColor
+              )}
+            >
+              {isGitBook ? (
+                <Sparkles className="w-6 h-6 text-white" />
+              ) : (
+                <BookOpen className="w-6 h-6 text-white" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h3
@@ -272,11 +308,27 @@ function ContentCard({
               >
                 {item.title}
               </h3>
+              {/* Row 1: description (both sources, when available) */}
               {item.description && (
-                <p className="text-sm text-gray-500 line-clamp-2 mt-1">{item.description}</p>
+                <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+                  {item.description}
+                </p>
               )}
+              {/* Row 2: GitBook origin line (only when there's no description,
+                  to avoid crowding the card) */}
+              {isGitBook && gitbookOrigin && !item.description && (
+                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-slate-400" />
+                  {gitbookOrigin}
+                </p>
+              )}
+              {/* Row 3: timestamp meta */}
               {item.meta && (
-                <p className="text-xs text-gray-400 mt-1">{item.meta}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {isGitBook && gitbookOrigin && item.description
+                    ? `${gitbookOrigin} · ${item.meta}`
+                    : item.meta}
+                </p>
               )}
             </div>
           </div>
