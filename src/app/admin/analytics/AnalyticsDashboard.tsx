@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Eye, Users, Download, Search, Building2, User, FileText } from "lucide-react"
+import Link from "next/link"
+import { Eye, Users, Download, Search, Building2, User, FileText, ChevronRight, ArrowRight } from "lucide-react"
 import { PageViewsChart } from "@/components/charts/PageViewsChart"
 import { cn } from "@/lib/utils"
 
@@ -140,9 +141,18 @@ export function AnalyticsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Domains */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Top Partner Domains</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900">Top Partner Domains</h2>
+            </div>
+            <Link
+              href={`/admin/analytics/domains?range=${range}`}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline font-medium"
+            >
+              View all
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
           {data.topDomains.length > 0 ? (
             <table className="w-full">
@@ -153,7 +163,7 @@ export function AnalyticsDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {data.topDomains.map((domain, i) => (
+                {data.topDomains.map((domain) => (
                   <tr key={domain.domain} className="border-b border-gray-100 last:border-0">
                     <td className="py-3">
                       <div className="font-medium text-gray-900">{domain.domain}</div>
@@ -173,32 +183,43 @@ export function AnalyticsDashboard() {
 
         {/* Top Users */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="w-5 h-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Top Users</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900">Top Users</h2>
+            </div>
+            <Link
+              href={`/admin/analytics/users?range=${range}`}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline font-medium"
+            >
+              View all
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
           {data.topUsers.length > 0 ? (
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-500 border-b">
-                  <th className="pb-2 font-medium">User</th>
-                  <th className="pb-2 font-medium text-right">Activity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.topUsers.map((user) => (
-                  <tr key={user.userId} className="border-b border-gray-100 last:border-0">
-                    <td className="py-3">
-                      <div className="font-medium text-gray-900">{user.name || user.email}</div>
+            <ul className="divide-y divide-gray-100 -my-3">
+              {data.topUsers.map((user) => (
+                <li key={user.userId}>
+                  <Link
+                    href={`/admin/analytics/users/${user.userId}?range=${range}`}
+                    className="group flex items-center justify-between gap-3 py-3 hover:bg-gray-50 -mx-2 px-2 rounded transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-900 group-hover:text-primary transition-colors truncate">
+                        {user.name || user.email}
+                      </div>
                       {user.name && (
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="text-sm text-gray-500 truncate">{user.email}</div>
                       )}
-                    </td>
-                    <td className="py-3 text-right font-medium text-gray-900">{user.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-medium text-gray-900">{user.count}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           ) : (
             <div className="text-center py-8 text-gray-500">No data available</div>
           )}
