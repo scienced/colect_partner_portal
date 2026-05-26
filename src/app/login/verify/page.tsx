@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { consumeCode } from "supertokens-web-js/recipe/passwordless"
+import Session from "supertokens-web-js/recipe/session"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
+import { clearAuthCookies } from "@/lib/auth-clear"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
@@ -20,6 +22,23 @@ function VerifyContent() {
     initSupertokensFrontend()
 
     const verifyMagicLink = async () => {
+      // consumeCode also calls getSession({ sessionRequired: false }) internally,
+      // which 401s on a stale/expired access token and would break magic-link
+      // verification. Clear dead session cookies before consuming the code — but
+      // ONLY when there is no usable session. doesSessionExist() returns true for
+      // valid OR refreshable sessions (it auto-refreshes an expired access token)
+      // and false only for a genuinely dead session, so this never logs out a
+      // user who is still legitimately signed in.
+      try {
+        const hasSession = await Session.doesSessionExist()
+        if (!hasSession) {
+          await clearAuthCookies("verify-page")
+        }
+      } catch {
+        // Session state is broken/unreadable — safe to clear.
+        await clearAuthCookies("verify-page")
+      }
+
       try {
         const response = await consumeCode()
 
