@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
 import Session from "supertokens-web-js/recipe/session"
+import { clearAuthCookies } from "@/lib/auth-clear"
 
 // Routes that don't require authentication
 const publicRoutes = ["/login", "/login/verify"]
@@ -26,19 +27,12 @@ export function SuperTokensProvider({
   // Check if current route is public
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
-  // Clear all session cookies and redirect to login
+  // Clear all session cookies (server-side, so httpOnly cookies are actually
+  // removed) and redirect to login. NOTE: client-side document.cookie cannot
+  // delete the httpOnly session cookies, and Session.signOut() fails on a dead
+  // session (it requires a valid one) — so we clear via the server endpoint.
   const clearSessionAndLogin = useCallback(() => {
-    // Clear SuperTokens cookies
-    const cookiesToClear = ["sAccessToken", "sRefreshToken", "sAntiCsrf", "sFrontToken"]
-    cookiesToClear.forEach(name => {
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-    })
-
-    // Also try to sign out via SuperTokens (in case it helps clean up state)
-    Session.signOut().catch(() => {
-      // Ignore errors - we're already clearing cookies manually
-    }).finally(() => {
-      // Force redirect to login
+    clearAuthCookies("provider-clear").finally(() => {
       window.location.href = "/login"
     })
   }, [])

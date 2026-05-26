@@ -43,16 +43,34 @@ export function initSupertokens() {
           apis: (originalImplementation) => ({
             ...originalImplementation,
             createCodePOST: async function (input) {
-              if ("email" in input && input.email) {
-                const allowed = await isEmailAllowed(input.email)
+              const email = "email" in input ? input.email : undefined
+              const domain = email?.split("@")[1]?.toLowerCase()
+
+              if (email) {
+                const allowed = await isEmailAllowed(email)
                 if (!allowed) {
+                  // Visibility: unauthorized-domain login attempts. Grep: [auth]
+                  console.warn(`[auth] createCode denied — unauthorized domain "${domain}"`)
                   return {
                     status: "GENERAL_ERROR",
                     message: "This email domain is not authorized for partner access. Please contact support if you believe this is an error.",
                   }
                 }
               }
-              return originalImplementation.createCodePOST!(input)
+
+              try {
+                const result = await originalImplementation.createCodePOST!(input)
+                if (result.status !== "OK") {
+                  console.warn(`[auth] createCode non-OK status="${result.status}" domain="${domain}"`)
+                }
+                return result
+              } catch (err) {
+                // Should be rare now that the login flow clears stale session
+                // cookies up front (see src/lib/auth-clear.ts). If it still
+                // happens we want it in the logs.
+                console.error(`[auth] createCode threw for domain="${domain}":`, err)
+                throw err
+              }
             },
           }),
           functions: (originalImplementation) => ({

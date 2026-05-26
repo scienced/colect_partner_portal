@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { createCode } from "supertokens-web-js/recipe/passwordless"
 import Session from "supertokens-web-js/recipe/session"
 import { initSupertokensFrontend } from "@/lib/supertokens/frontend"
+import { clearAuthCookies } from "@/lib/auth-clear"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Card } from "@/components/ui/Card"
@@ -64,6 +65,14 @@ function LoginContent() {
         // Session check failed, show login form
         console.error("Session check error:", err)
       }
+
+      // No usable session. The browser may still hold a STALE httpOnly session
+      // cookie (e.g. an expired access token from months ago). That cookie is
+      // sent with the createCode request and makes SuperTokens' internal
+      // getSession throw a 401 ("Failed to send magic link"). Clear it
+      // server-side so the magic-link flow always starts from a clean state.
+      await clearAuthCookies("login-page")
+
       setReady(true)
     }
 
@@ -88,6 +97,9 @@ function LoginContent() {
       }
     } catch (err) {
       console.error("Login error:", err)
+      // A failure here is almost always a stale-session 401 (see auth-clear).
+      // Clear the dead cookies so the user's retry starts clean, and record it.
+      await clearAuthCookies("create-code-failed")
       setError("Failed to send magic link. Please try again.")
       setState("error")
     } finally {

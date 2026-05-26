@@ -1,5 +1,18 @@
 import useSWR, { SWRConfiguration } from "swr"
 import type { Asset, AssetsResponse, HomepageData } from "@/types"
+import { clearAuthCookies } from "@/lib/auth-clear"
+
+/**
+ * Clear stale session cookies, then send the user to the login page.
+ * Clearing first prevents a redirect loop: if the (httpOnly) session cookies
+ * survive, the login page can think a session still exists and bounce the user
+ * straight back into the portal, which 401s again. See src/lib/auth-clear.ts.
+ */
+async function redirectToLogin(): Promise<void> {
+  if (typeof window === "undefined") return
+  await clearAuthCookies("swr-401")
+  window.location.href = "/login"
+}
 
 // Track if we're currently refreshing the session to avoid multiple refreshes
 let isRefreshing = false
@@ -60,18 +73,14 @@ export const fetcher = async (url: string) => {
 
       // If still failing after refresh, redirect to login
       if (retryRes.status === 401) {
-        if (typeof window !== "undefined") {
-          window.location.href = "/login"
-        }
+        await redirectToLogin()
         throw new Error("Session expired")
       }
 
       throw new Error("Failed to fetch data")
     } else {
       // Refresh failed, redirect to login
-      if (typeof window !== "undefined") {
-        window.location.href = "/login"
-      }
+      await redirectToLogin()
       throw new Error("Session expired")
     }
   }
