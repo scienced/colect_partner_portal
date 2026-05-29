@@ -62,8 +62,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308)
   }
 
-  // Allow public routes
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+  // Allow public routes — exact match or with a trailing slash, so adding
+  // "/docs" to publicRoutes doesn't accidentally also let "/docs-updates"
+  // (a portal route) through. Same shape applies to every entry.
+  if (publicRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))) {
     return NextResponse.next()
   }
 

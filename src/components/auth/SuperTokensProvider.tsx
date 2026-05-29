@@ -24,8 +24,13 @@ export function SuperTokensProvider({
   const pathname = usePathname()
   const router = useRouter()
 
-  // Check if current route is public
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  // Check if current route is public. Exact match or trailing-slash prefix —
+  // `pathname.startsWith("/docs")` would also match the portal `/docs-updates`
+  // page, which is the wrong behaviour. See src/middleware.ts for the
+  // matching rule on the server side.
+  const isPublicRoute = publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
+  )
 
   // Clear all session cookies (server-side, so httpOnly cookies are actually
   // removed) and redirect to login. NOTE: client-side document.cookie cannot
