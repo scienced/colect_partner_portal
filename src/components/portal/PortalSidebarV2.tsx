@@ -18,6 +18,7 @@ import {
   X,
   Loader2,
   BookOpen,
+  Key,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Session from "supertokens-web-js/recipe/session"
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/assets", label: "Assets & Links", icon: FolderOpen },
   { href: "/docs-updates", label: "Documentation", icon: BookOpen },
   { href: "/who-is-who", label: "Who's Who", icon: Users },
+  { href: "/settings/api-keys", label: "API Keys", icon: Key },
 ]
 
 interface PortalSidebarV2Props {

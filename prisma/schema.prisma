@@ -28,6 +28,8 @@ enum AnalyticsEventType {
   ASSET_CLICK
   ASSET_DOWNLOAD
   SEARCH_QUERY
+  API_QUERY // REST /api/v1/* call authenticated with an ApiKey
+  MCP_QUERY // request from the MCP server (also rides an ApiKey, but tagged separately)
 }
 
 // Analytics events for tracking portal usage
@@ -48,6 +50,11 @@ model AnalyticsEvent {
   assetLanguage String? // Which language variant was clicked/downloaded
   searchQuery   String?
 
+  // When the event came from a REST/MCP call, the ApiKey it was authenticated
+  // with — for audit ("which key did what") and forensics on a compromised key.
+  apiKeyId String?
+  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime @default(now())
 
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -57,6 +64,7 @@ model AnalyticsEvent {
   @@index([userDomain])
   @@index([createdAt])
   @@index([type, createdAt])
+  @@index([apiKeyId])
 }
 
 // Users table (synced with SuperTokens)
@@ -69,6 +77,43 @@ model User {
   updatedAt DateTime @updatedAt
 
   analyticsEvents AnalyticsEvent[]
+  apiKeys         ApiKey[]
+}
+
+// API keys for the REST /api/v1/* surface and the MCP server.
+//
+// Trust model is intentionally domain-scoped, mirroring the portal login:
+// any logged-in user at an allowed domain can mint a key for themselves, and
+// every user at the same domain can SEE and REVOKE every key at that domain
+// (self-policing). This is the honest representation of the current auth model
+// — until a per-user invite flow exists, treating an individual user as the
+// trust unit would be misleading. See memory: api-scope-mirrors-ui.
+//
+// The plaintext key is shown ONCE at creation; only its sha256 hash is stored.
+// `prefix` (first 8 chars) is non-secret and shown in lists for identification.
+model ApiKey {
+  id        String  @id @default(uuid())
+  hashedKey String  @unique // sha256 of the full plaintext key
+  prefix    String  // first 8 chars of the plaintext (after the `colect_pk_` prefix), e.g. "a1b2c3d4"
+  label     String  // user-provided, e.g. "My laptop MCP"
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain String // denormalised from user email at creation; the real trust unit
+
+  scopes String[] // future-proofing; v1 keys get ["read:portal"]
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime? // null = no expiry; v1 default is now() + 90 days
+  lastUsedAt DateTime?
+  lastUsedIp String?
+  revokedAt  DateTime? // soft-delete: a revoked key keeps audit trail intact
+
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([userId])
+  @@index([domain])
+  @@index([revokedAt])
 }
 
 // Unified assets table (decks, campaigns, assets)

@@ -7,7 +7,7 @@ import Session from "supertokens-web-js/recipe/session"
 import { clearAuthCookies } from "@/lib/auth-clear"
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/login/verify"]
+const publicRoutes = ["/login", "/login/verify", "/docs"]
 
 // Timeout for session check (10 seconds)
 const SESSION_CHECK_TIMEOUT = 10000
