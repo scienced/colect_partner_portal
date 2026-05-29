@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
-import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
+import { ok, httpErrors, withV1Handler, getCanonicalOrigin } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { AssetType, Prisma } from "@prisma/client"
 import { assetPortalUrl } from "@/lib/portalUrls"
@@ -49,7 +49,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     ...(updatedSince ? { updatedAt: { gt: updatedSince } } : {}),
   }
 
-  const origin = new URL(request.url).origin
+  const origin = getCanonicalOrigin(request)
 
   const [items, total] = await Promise.all([
     prisma.asset.findMany({

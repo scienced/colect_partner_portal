@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
-import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
+import { ok, httpErrors, withV1Handler, getCanonicalOrigin } from "@/lib/v1Response"
 import { searchPortal, type SearchResultType } from "@/lib/v1Search"
 
 export const dynamic = "force-dynamic"
@@ -40,7 +40,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const limit = clampInt(searchParams.get("limitPerType"), 1, 25, 5)
 
   // Same-origin URLs in results so agents can render clickable portal links.
-  const origin = new URL(request.url).origin
+  const origin = getCanonicalOrigin(request)
   const items = await searchPortal({ query: q, types, limitPerType: limit, origin })
 
   return ok({ query: q, items, total: items.length })

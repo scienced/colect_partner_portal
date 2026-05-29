@@ -51,6 +51,27 @@ export const httpErrors = {
  */
 type V1Handler<Ctx> = (request: NextRequest, ctx: Ctx) => Promise<Response>
 
+/**
+ * Public-facing origin for URLs that the API emits.
+ *
+ * Important: behind DigitalOcean's ingress proxy, `request.url` reflects the
+ * internal upstream (typically `http://localhost:3000`), NOT the public URL —
+ * so naive `new URL(request.url).origin` ends up baking `localhost` into every
+ * search result, asset deep-link, and the openapi `servers` field. Prefer the
+ * deployment-time `NEXT_PUBLIC_APP_URL` env var; fall back to standard proxy
+ * headers, then finally the request itself for non-proxied local dev.
+ */
+export function getCanonicalOrigin(request: NextRequest): string {
+  const envOrigin = process.env.NEXT_PUBLIC_APP_URL
+  if (envOrigin) {
+    try { return new URL(envOrigin).origin } catch { /* fall through */ }
+  }
+  const proto = request.headers.get("x-forwarded-proto") || "https"
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host")
+  if (host) return `${proto}://${host}`
+  return new URL(request.url).origin
+}
+
 export function withV1Handler<Ctx = undefined>(handler: V1Handler<Ctx>): V1Handler<Ctx> {
   return async (request, ctx) => {
     try {

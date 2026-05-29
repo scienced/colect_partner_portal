@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { buildOpenApiSpec } from "@/lib/openapi"
+import { getCanonicalOrigin } from "@/lib/v1Response"
 
 export const dynamic = "force-dynamic"
 
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic"
  * this URL directly as a tool catalog.
  */
 export async function GET(request: NextRequest) {
-  const origin = new URL(request.url).origin
+  const origin = getCanonicalOrigin(request)
   return NextResponse.json(buildOpenApiSpec(origin), {
     headers: {
       "Cache-Control": "public, max-age=300, s-maxage=300",

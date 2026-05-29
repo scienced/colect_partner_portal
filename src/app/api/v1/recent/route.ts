@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
-import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
+import { ok, httpErrors, withV1Handler, getCanonicalOrigin } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { assetPortalUrl } from "@/lib/portalUrls"
 
@@ -61,7 +61,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   }
 
   const limit = clampInt(searchParams.get("limit"), 1, 100, 20)
-  const origin = new URL(request.url).origin
+  const origin = getCanonicalOrigin(request)
   const updatedAtFilter = since ? { gt: since } : undefined
 
   // Over-fetch from each type so the merge has enough range to fill `limit`

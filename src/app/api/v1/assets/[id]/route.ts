@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
-import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
+import { ok, httpErrors, withV1Handler, getCanonicalOrigin } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
 import { assetPortalUrl, DOWNLOAD_URL_VALID_FOR_MS } from "@/lib/portalUrls"
@@ -28,7 +28,7 @@ export const GET = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) => 
   const variantFileKeys = asset.variants.map((v) => v.fileUrl)
   const presignedFiles = await getPresignedUrls(variantFileKeys)
 
-  const origin = new URL(request.url).origin
+  const origin = getCanonicalOrigin(request)
   const downloadExpiresAt = new Date(Date.now() + DOWNLOAD_URL_VALID_FOR_MS).toISOString()
 
   return ok({
