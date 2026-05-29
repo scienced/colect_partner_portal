@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// Routes that don't require authentication
-const publicRoutes = ["/login", "/login/verify", "/api/auth"]
+// Routes that don't require authentication. /docs is intentionally public so
+// API consumers (and the AI agents you give the docs URL to) can read the
+// API reference and MCP setup guide without a portal login.
+const publicRoutes = ["/login", "/login/verify", "/api/auth", "/docs"]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
