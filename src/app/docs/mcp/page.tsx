@@ -1,55 +1,61 @@
-import Link from "next/link"
+import {
+  H1, H2, H3, Lede, P, A, Code, Pre, Ul, Li, Ol, Callout,
+} from "@/components/docs/Prose"
 
 export default function McpDocsPage() {
   return (
-    <article className="prose prose-gray max-w-none">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">MCP integration guide</h1>
-      <p className="text-gray-600">
+    <article>
+      <H1>MCP integration guide</H1>
+      <Lede>
         Wire the partner portal into <strong>Claude Desktop</strong> or{" "}
         <strong>Claude Code</strong> so the portal&apos;s assets, docs, product
-        updates and team directory are native tools your AI can call.
-      </p>
+        updates and team directory are native tools your AI can call —
+        no copy-pasting endpoints into prompts.
+      </Lede>
 
-      <h2>What you get</h2>
-      <p>
-        The MCP server exposes the same content as the REST API as MCP tools:
-      </p>
-      <ul>
-        <li>
-          <code>portal_search</code> — full-text search across all content
-        </li>
-        <li><code>portal_list_assets</code></li>
-        <li><code>portal_get_asset</code></li>
-        <li><code>portal_list_docs_updates</code></li>
-        <li><code>portal_list_product_updates</code></li>
-        <li><code>portal_list_who_is_who</code></li>
-        <li><code>portal_list_featured</code></li>
-        <li><code>portal_me</code> — identify the current key</li>
-      </ul>
+      <H2 id="what-you-get">What you get</H2>
+      <P>
+        Eight read-only MCP tools, one per content type plus a search tool and
+        a smoke-test tool:
+      </P>
+      <Ul>
+        <Li><Code>portal_me</Code> — identify the current key. Smoke test.</Li>
+        <Li><Code>portal_search</Code> — full-text search across all content.</Li>
+        <Li><Code>portal_list_recent</Code> — unified &quot;what&apos;s new&quot; feed across content types.</Li>
+        <Li><Code>portal_list_assets</Code> — list/filter assets.</Li>
+        <Li><Code>portal_get_asset</Code> — asset detail with presigned download URLs.</Li>
+        <Li><Code>portal_list_docs_updates</Code> — documentation updates.</Li>
+        <Li><Code>portal_list_product_updates</Code> — release notes and upcoming items.</Li>
+        <Li><Code>portal_list_who_is_who</Code> — team directory.</Li>
+        <Li><Code>portal_list_featured</Code> — currently-active featured items.</Li>
+      </Ul>
 
-      <h2>1 · Get an API key</h2>
-      <p>
+      <H2 id="step-1">Step 1 — Get an API key</H2>
+      <P>
         Sign in to the portal with your partner email and go to{" "}
-        <Link href="/settings/api-keys">/settings/api-keys</Link>. Create a key
-        labelled with the device you&apos;re setting up (e.g. &quot;Sarah&apos;s
-        MacBook&quot;). You&apos;ll see the secret <em>once</em> — copy it now.
-      </p>
+        <A href="/settings/api-keys">/settings/api-keys</A>. Create a key
+        labelled with the device you&apos;re setting up (for example{" "}
+        <em>&quot;Sarah&apos;s MacBook&quot;</em>). You&apos;ll see the secret{" "}
+        <strong>once</strong> — copy it now and put it in your password
+        manager.
+      </P>
 
-      <h2>2 · Add the server to Claude Desktop</h2>
-      <p>Edit your Claude Desktop config:</p>
-      <ul>
-        <li>
+      <H2 id="step-2">Step 2 — Add the server to Claude Desktop</H2>
+      <P>Edit your Claude Desktop config file:</P>
+      <Ul>
+        <Li>
           macOS:{" "}
-          <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>
-        </li>
-        <li>
+          <Code>~/Library/Application Support/Claude/claude_desktop_config.json</Code>
+        </Li>
+        <Li>
           Windows:{" "}
-          <code>%APPDATA%\Claude\claude_desktop_config.json</code>
-        </li>
-      </ul>
-      <p>Add an entry under <code>mcpServers</code>:</p>
-      <pre>
-        <code>{`{
+          <Code>%APPDATA%\Claude\claude_desktop_config.json</Code>
+        </Li>
+      </Ul>
+      <P>
+        Add an entry under <Code>mcpServers</Code>:
+      </P>
+      <Pre language="json">{`{
   "mcpServers": {
     "colect-portal": {
       "command": "npx",
@@ -60,28 +66,62 @@ export default function McpDocsPage() {
       }
     }
   }
-}`}</code>
-      </pre>
-      <p>
-        Restart Claude Desktop. The portal tools should appear under the
-        🔌 plugins icon on a new conversation.
-      </p>
+}`}</Pre>
+      <P>
+        Restart Claude Desktop. The portal tools appear under the 🔌 plugins
+        icon on a new conversation.
+      </P>
 
-      <h2>3 · Add the server to Claude Code</h2>
-      <p>From a terminal:</p>
-      <pre>
-        <code>{`claude mcp add colect-portal \\
+      <H2 id="step-3">Step 3 — Or add it to Claude Code</H2>
+      <P>From a terminal:</P>
+      <Pre language="bash">{`claude mcp add colect-portal \\
   --env PORTAL_API_KEY="colect_pk_..." \\
   --env PORTAL_BASE_URL="https://partnerportal.colect.io" \\
-  -- npx -y @colect/portal-mcp`}</code>
-      </pre>
+  -- npx -y @colect/portal-mcp`}</Pre>
 
-      <h2>Local install (no npm publish needed)</h2>
-      <p>While the package is local-only, point Claude at the repo:</p>
-      <pre>
-        <code>{`{
+      <H2 id="claude-ai">Step 3b — Or add it to Claude.ai (the web chat)</H2>
+      <P>
+        Claude.ai supports MCP servers through its <strong>Custom
+        Connectors</strong> feature (Settings → Connectors). Custom Connectors
+        require a server reachable over HTTPS — not a local stdio process.
+      </P>
+      <Callout type="info" title="Status: not yet enabled">
+        The portal&apos;s MCP server is currently <strong>stdio-only</strong>,
+        which is exactly what Claude Desktop and Claude Code need. Claude.ai
+        Custom Connectors require a <strong>remote HTTP MCP endpoint</strong>
+        — which we&apos;ll ship at{" "}
+        <Code>https://partnerportal.colect.io/api/v1/mcp</Code> in a follow-up.
+        When that goes live, the setup will be:
+      </Callout>
+      <Ol>
+        <Li>In Claude.ai, open <strong>Settings → Connectors</strong>.</Li>
+        <Li>Click <strong>Add custom connector</strong>.</Li>
+        <Li>
+          Paste the URL{" "}
+          <Code>https://partnerportal.colect.io/api/v1/mcp</Code>.
+        </Li>
+        <Li>
+          When prompted for credentials, paste your{" "}
+          <Code>colect_pk_…</Code> API key as the Bearer token.
+        </Li>
+        <Li>Save. The portal tools become available in every conversation.</Li>
+      </Ol>
+      <P>
+        Until the remote endpoint ships, the alternative for Claude.ai is to
+        give Claude the OpenAPI spec URL{" "}
+        <A href="/api/v1/openapi.json"><Code>/api/v1/openapi.json</Code></A>{" "}
+        and your API key in a project — Claude can then call the REST API
+        directly. It works, but it&apos;s not as smooth as the connector path.
+      </P>
+
+      <H2 id="local">Local install (no npm publish)</H2>
+      <P>
+        While the package isn&apos;t on npm yet, point Claude at the file in
+        this repo:
+      </P>
+      <Pre language="json">{`{
   "mcpServers": {
-    "colect-portal": {
+    "colect-portal-local": {
       "command": "node",
       "args": ["/absolute/path/to/colect_partner_portal/mcp-server/index.js"],
       "env": {
@@ -90,47 +130,46 @@ export default function McpDocsPage() {
       }
     }
   }
-}`}</code>
-      </pre>
+}`}</Pre>
 
-      <h2>Trying it</h2>
-      <p>In a new Claude conversation, try:</p>
-      <blockquote>
-        <p>
+      <H2 id="trying">Trying it</H2>
+      <P>In a new Claude conversation, try:</P>
+      <Callout type="tip">
+        <em>
           &quot;Search the partner portal for sustainability decks and list the
           top three.&quot;
-        </p>
-      </blockquote>
-      <p>
-        Claude will pick the <code>portal_search</code> tool, call it, and
+        </em>
+      </Callout>
+      <P>
+        Claude will pick the <Code>portal_search</Code> tool, call it, and
         present the results with clickable links back into the portal.
-      </p>
+      </P>
 
-      <h2>What gets logged</h2>
-      <p>
-        Every MCP call is recorded as an <code>MCP_QUERY</code> analytics event
+      <H2 id="logging">What gets logged</H2>
+      <P>
+        Every MCP call is recorded as an <Code>MCP_QUERY</Code> analytics event
         on the portal, tagged with the API key it rode and the query string.
-        That feeds straight into the admin per-user analytics drill-down, so
+        That feeds straight into the admin per-user analytics drilldown, so
         you can see which AI-driven questions are hitting which content.
-      </p>
+      </P>
 
-      <h2>Safety notes</h2>
-      <ul>
-        <li>
-          The MCP server is <strong>read-only</strong> — no tool can modify
+      <H2 id="safety">Safety notes</H2>
+      <Ol>
+        <Li>
+          The MCP server is <strong>read-only</strong>. No tool can modify
           portal data.
-        </li>
-        <li>
-          The server holds the API key in its own process env. It is not sent
-          to Anthropic; it&apos;s only used to authenticate the local-to-portal
-          API calls.
-        </li>
-        <li>
+        </Li>
+        <Li>
+          The server holds the API key in its own process environment. It is
+          never sent to Anthropic — it&apos;s only used to authenticate the
+          local-to-portal API calls.
+        </Li>
+        <Li>
           Revoke the key from{" "}
-          <Link href="/settings/api-keys">/settings/api-keys</Link> at any
-          time — the change takes effect within a minute.
-        </li>
-      </ul>
+          <A href="/settings/api-keys">/settings/api-keys</A> at any time. The
+          change takes effect within a minute.
+        </Li>
+      </Ol>
     </article>
   )
 }

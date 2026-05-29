@@ -80,6 +80,36 @@ export default function ApiKeysPage() {
         </div>
 
         <DomainTrustCallout />
+
+        <div className="mt-4 flex items-center gap-3 text-sm flex-wrap">
+          <span className="text-gray-500">Docs:</span>
+          <a
+            href="/docs/api"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            API reference <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <span className="text-gray-300">·</span>
+          <a
+            href="/docs/mcp"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            MCP setup guide <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <span className="text-gray-300">·</span>
+          <a
+            href="/api/v1/openapi.json"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            openapi.json <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </header>
 
       <div className="mb-4 flex items-center gap-3 text-sm text-gray-500">

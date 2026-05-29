@@ -23,9 +23,20 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const limit = clampInt(searchParams.get("limit"), 1, 100, 50)
   const offset = clampInt(searchParams.get("offset"), 0, 100_000, 0)
 
+  const sinceRaw = searchParams.get("updatedSince")
+  let updatedSince: Date | undefined
+  if (sinceRaw) {
+    const parsed = new Date(sinceRaw)
+    if (Number.isNaN(parsed.getTime())) {
+      return httpErrors.badRequest("`updatedSince` must be a valid ISO 8601 timestamp.")
+    }
+    updatedSince = parsed
+  }
+
   const where: Prisma.ProductUpdateWhereInput = {
     publishedAt: { not: null },
     ...(updateType ? { updateType } : {}),
+    ...(updatedSince ? { updatedAt: { gt: updatedSince } } : {}),
   }
 
   const [items, total] = await Promise.all([
@@ -64,6 +75,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     total,
     limit,
     offset,
+    nextOffset: offset + items.length < total ? offset + items.length : null,
   })
 })
 

@@ -77,7 +77,7 @@ server.registerTool(
   "portal_search",
   {
     description:
-      "Full-text search across portal content (assets, docs updates, product updates, team members, featured items). Returns ranked, interleaved results. Use this as the default way to answer 'find me X' questions.",
+      "Full-text search across portal content (assets, docs updates, product updates, team members, featured items). Returns ranked, interleaved results with match-highlighted snippets (matches wrapped in **markdown bold**). For asset results, each item carries an inline `download` object with the direct presigned PDF/file URL — you can fetch the file directly, no follow-up call needed. Use this as the default way to answer 'find me X' or 'what does the portal say about X' questions.",
     inputSchema: {
       q: z.string().min(2).describe("The search query."),
       types: z
@@ -95,7 +95,7 @@ server.registerTool(
   "portal_list_assets",
   {
     description:
-      "List published assets (decks, campaigns, videos, links). Use filters to narrow down before falling back to search.",
+      "List published assets (decks, campaigns, videos, links). Each item carries an inline `download` object with the presigned PDF/file URL — no need to call portal_get_asset just to find the file. Use filters to narrow down before falling back to search.",
     inputSchema: {
       type: z.enum(["DECK", "CAMPAIGN", "VIDEO", "ASSET"]).optional(),
       region: z.string().optional().describe("e.g. EMEA, APAC, Americas"),
@@ -165,6 +165,27 @@ server.registerTool(
     inputSchema: {},
   },
   async () => jsonContent(await apiGet("/api/v1/featured"))
+)
+
+server.registerTool(
+  "portal_list_recent",
+  {
+    description:
+      "Unified 'what's new' feed across assets, docs updates, and product updates, sorted by most recently updated. The fastest way to answer 'what's changed in the portal lately?' — call this BEFORE running multiple list calls and merging them yourself.",
+    inputSchema: {
+      types: z
+        .array(z.enum(["asset", "docs_update", "product_update"]))
+        .optional()
+        .describe("Restrict to a subset of content types."),
+      since: z
+        .string()
+        .datetime()
+        .optional()
+        .describe("ISO 8601 timestamp — only items updated after this."),
+      limit: z.number().int().min(1).max(100).optional().describe("Default 20."),
+    },
+  },
+  async (args) => jsonContent(await apiGet("/api/v1/recent", args))
 )
 
 const transport = new StdioServerTransport()

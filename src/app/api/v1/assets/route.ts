@@ -3,6 +3,8 @@ import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
 import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { AssetType, Prisma } from "@prisma/client"
+import { assetPortalUrl } from "@/lib/portalUrls"
+import { resolveDefaultVariantDownloads } from "@/lib/v1Search"
 
 export const dynamic = "force-dynamic"
 
@@ -27,12 +29,24 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const limit = clampInt(searchParams.get("limit"), 1, 100, 50)
   const offset = clampInt(searchParams.get("offset"), 0, 100_000, 0)
 
+  // ?updatedSince=ISO — "everything updated after this timestamp".
+  const sinceRaw = searchParams.get("updatedSince")
+  let updatedSince: Date | undefined
+  if (sinceRaw) {
+    const parsed = new Date(sinceRaw)
+    if (Number.isNaN(parsed.getTime())) {
+      return httpErrors.badRequest("`updatedSince` must be a valid ISO 8601 timestamp.")
+    }
+    updatedSince = parsed
+  }
+
   const where: Prisma.AssetWhereInput = {
     publishedAt: { not: null },
     ...(typeParam ? { type: typeParam as AssetType } : {}),
     ...(region ? { region: { has: region } } : {}),
     ...(persona ? { persona: { has: persona } } : {}),
     ...(language ? { availableLanguages: { has: language.toUpperCase() } } : {}),
+    ...(updatedSince ? { updatedAt: { gt: updatedSince } } : {}),
   }
 
   const origin = new URL(request.url).origin
@@ -68,6 +82,10 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     prisma.asset.count({ where }),
   ])
 
+  // Presign the default-variant download URL per asset so agents get the
+  // direct, consumable file URL inline (no follow-up portal_get_asset call).
+  const downloads = await resolveDefaultVariantDownloads(items.map((a) => a.id))
+
   return ok({
     items: items.map((a) => ({
       id: a.id,
@@ -86,12 +104,14 @@ export const GET = withV1Handler(async (request: NextRequest) => {
       updatedAt: a.updatedAt.toISOString(),
       publishedAt: a.publishedAt?.toISOString() ?? null,
       variants: a.variants,
-      portalUrl: portalUrlFor(origin, a.type),
+      portalUrl: assetPortalUrl(origin, a.type, a.id),
       detailUrl: `${origin}/api/v1/assets/${a.id}`,
+      download: downloads.get(a.id) ?? null,
     })),
     total,
     limit,
     offset,
+    nextOffset: offset + items.length < total ? offset + items.length : null,
   })
 })
 
@@ -100,13 +120,4 @@ function clampInt(raw: string | null, min: number, max: number, fallback: number
   const n = Number.parseInt(raw, 10)
   if (Number.isNaN(n)) return fallback
   return Math.max(min, Math.min(max, n))
-}
-
-function portalUrlFor(origin: string, type: AssetType): string {
-  switch (type) {
-    case "DECK": return `${origin}/decks`
-    case "CAMPAIGN": return `${origin}/campaigns`
-    case "VIDEO": return `${origin}/videos`
-    default: return `${origin}/assets`
-  }
 }

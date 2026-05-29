@@ -3,7 +3,7 @@ import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
 import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
-import { AssetType } from "@prisma/client"
+import { assetPortalUrl, DOWNLOAD_URL_VALID_FOR_MS } from "@/lib/portalUrls"
 
 export const dynamic = "force-dynamic"
 
@@ -24,11 +24,12 @@ export const GET = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) => 
   })
   if (!asset) return httpErrors.notFound("Asset not found or not published.")
 
-  // Presign per-variant download URLs (each ~5 min). Done in one batched call.
+  // Presign per-variant download URLs. Done in one batched call.
   const variantFileKeys = asset.variants.map((v) => v.fileUrl)
   const presignedFiles = await getPresignedUrls(variantFileKeys)
 
   const origin = new URL(request.url).origin
+  const downloadExpiresAt = new Date(Date.now() + DOWNLOAD_URL_VALID_FOR_MS).toISOString()
 
   return ok({
     id: asset.id,
@@ -46,7 +47,7 @@ export const GET = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) => 
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
     publishedAt: asset.publishedAt?.toISOString() ?? null,
-    portalUrl: portalUrlFor(origin, asset.type),
+    portalUrl: assetPortalUrl(origin, asset.type, asset.id),
     downloads: asset.variants.map((v, i) => ({
       language: v.language,
       fileType: v.fileType,
@@ -54,16 +55,11 @@ export const GET = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) => 
       // Either a downloadable presigned URL or an external link, depending on
       // how this variant was uploaded by the admin.
       downloadUrl: presignedFiles[i],
+      // Conservative expiry: agents should re-fetch this endpoint if they
+      // hand the URL to a user later than this. Null when there's no
+      // presigned URL (variant uses an external link).
+      downloadUrlExpiresAt: presignedFiles[i] ? downloadExpiresAt : null,
       externalLink: v.externalLink,
     })),
   })
 })
-
-function portalUrlFor(origin: string, type: AssetType): string {
-  switch (type) {
-    case "DECK": return `${origin}/decks`
-    case "CAMPAIGN": return `${origin}/campaigns`
-    case "VIDEO": return `${origin}/videos`
-    default: return `${origin}/assets`
-  }
-}

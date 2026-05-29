@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
-import { ok, withV1Handler } from "@/lib/v1Response"
+import { ok, httpErrors, withV1Handler } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
+import type { Prisma } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
 
@@ -14,7 +15,20 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const limit = clampInt(searchParams.get("limit"), 1, 100, 50)
   const offset = clampInt(searchParams.get("offset"), 0, 100_000, 0)
 
-  const where = department ? { department } : {}
+  const sinceRaw = searchParams.get("updatedSince")
+  let updatedSince: Date | undefined
+  if (sinceRaw) {
+    const parsed = new Date(sinceRaw)
+    if (Number.isNaN(parsed.getTime())) {
+      return httpErrors.badRequest("`updatedSince` must be a valid ISO 8601 timestamp.")
+    }
+    updatedSince = parsed
+  }
+
+  const where: Prisma.TeamMemberWhereInput = {
+    ...(department ? { department } : {}),
+    ...(updatedSince ? { updatedAt: { gt: updatedSince } } : {}),
+  }
 
   const [items, total] = await Promise.all([
     prisma.teamMember.findMany({
@@ -56,6 +70,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     total,
     limit,
     offset,
+    nextOffset: offset + items.length < total ? offset + items.length : null,
   })
 })
 

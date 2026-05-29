@@ -95,6 +95,41 @@ export function buildOpenApiSpec(origin: string) {
       },
     },
     paths: {
+      "/api/v1/recent": {
+        get: {
+          summary: "Unified 'what's new' feed across partner content",
+          description:
+            "Sorted-by-updatedAt union of assets, docs updates, and product " +
+            "updates. The fastest way to answer 'what's changed in the portal " +
+            "lately?' without making three calls and merging on the client.",
+          parameters: [
+            {
+              name: "types",
+              in: "query",
+              required: false,
+              description: "Comma-separated subset (default: all).",
+              schema: { type: "string", example: "asset,docs_update" },
+            },
+            {
+              name: "since",
+              in: "query",
+              required: false,
+              description: "ISO 8601 timestamp; only items updated after it.",
+              schema: { type: "string", format: "date-time" },
+            },
+            {
+              name: "limit",
+              in: "query",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+            },
+          ],
+          responses: {
+            "200": { description: "Recent items, newest first" },
+            "401": { description: "Unauthorized" },
+          },
+        },
+      },
       "/api/v1/me": {
         get: {
           summary: "Identify the calling user and API key",
@@ -161,6 +196,7 @@ export function buildOpenApiSpec(origin: string) {
             { name: "language", in: "query", schema: { type: "string", example: "EN" } },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+            { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" }, description: "ISO 8601; only items updated after this." },
           ],
           responses: {
             "200": { description: "List of assets" },
@@ -171,7 +207,10 @@ export function buildOpenApiSpec(origin: string) {
       "/api/v1/assets/{id}": {
         get: {
           summary: "Asset detail with per-language download URLs",
-          description: "Download URLs are presigned and short-lived (~5 minutes).",
+          description:
+            "Each download URL is presigned and short-lived — `downloadUrlExpiresAt` " +
+            "(ISO 8601) is the conservative expiry. Refetch this endpoint after that " +
+            "if you need to use the URL again.",
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: {
             "200": { description: "Asset" },
@@ -187,6 +226,7 @@ export function buildOpenApiSpec(origin: string) {
             { name: "category", in: "query", schema: { type: "string" } },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+            { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" }, description: "ISO 8601; only items updated after this." },
           ],
           responses: { "200": { description: "List" }, "401": { description: "Unauthorized" } },
         },
@@ -198,6 +238,7 @@ export function buildOpenApiSpec(origin: string) {
             { name: "updateType", in: "query", schema: { type: "string", enum: ["release_note", "coming_up"] } },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+            { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" }, description: "ISO 8601; only items updated after this." },
           ],
           responses: { "200": { description: "List" }, "401": { description: "Unauthorized" } },
         },
@@ -209,6 +250,7 @@ export function buildOpenApiSpec(origin: string) {
             { name: "department", in: "query", schema: { type: "string" } },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+            { name: "updatedSince", in: "query", schema: { type: "string", format: "date-time" }, description: "ISO 8601; only items updated after this." },
           ],
           responses: { "200": { description: "List" }, "401": { description: "Unauthorized" } },
         },

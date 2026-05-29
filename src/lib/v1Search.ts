@@ -1,7 +1,17 @@
 import { prisma } from "@/lib/prisma"
+import {
+  assetPortalUrl,
+  DOWNLOAD_URL_VALID_FOR_MS,
+  type AssetDownloadInfo,
+} from "@/lib/portalUrls"
+import { getPresignedUrls } from "@/lib/s3"
 
 /**
  * Postgres full-text search across the portal's content tables.
+ *
+ * Snippets use `ts_headline` so matched terms are highlighted (with `**…**`
+ * markers — markdown-friendly so an agent can render them as bold or strip
+ * them trivially).
  *
  * Phase 1 (this file): per-table `to_tsvector` queries computed at query time,
  * no schema changes required. Plenty fast for the current content volume.
@@ -25,11 +35,24 @@ export interface SearchResult {
   type: SearchResultType
   id: string
   title: string
+  /** Body excerpt with matched terms wrapped in `**…**` (markdown bold). */
   snippet: string | null
+  /**
+   * The URL that's most useful to *follow* for this result. For docs_update
+   * this is the direct GitBook URL; for asset it's a portal deep-link that
+   * opens the asset drawer. For the actual downloadable file of an asset,
+   * use the `download` field.
+   */
   url: string
   updatedAt: string
   rank: number
   meta?: Record<string, unknown>
+  /**
+   * Asset results only. Present (non-null) when the asset has a downloadable
+   * variant — gives the agent the direct PDF/file URL inline so it doesn't
+   * need a second `portal_get_asset` round-trip just to consume the content.
+   */
+  download?: AssetDownloadInfo | null
 }
 
 export interface SearchOpts {
@@ -40,26 +63,10 @@ export interface SearchOpts {
 }
 
 const DEFAULT_LIMIT_PER_TYPE = 5
-const SNIPPET_MAX = 200
 
-function snippet(text: string | null | undefined): string | null {
-  if (!text) return null
-  const clean = text.replace(/\s+/g, " ").trim()
-  return clean.length > SNIPPET_MAX ? clean.slice(0, SNIPPET_MAX - 1) + "…" : clean
-}
-
-function assetUrl(origin: string, _id: string, type: string): string {
-  // The portal renders assets inside category-list pages, not detail pages, so
-  // the canonical URL is the category page. (Detail UI is a drawer on top of
-  // it.) Detail fetches are available via /api/v1/assets/:id.
-  const map: Record<string, string> = {
-    DECK: "/decks",
-    CAMPAIGN: "/campaigns",
-    VIDEO: "/videos",
-    ASSET: "/assets",
-  }
-  return `${origin}${map[type] ?? "/assets"}`
-}
+// ts_headline options: short single-fragment snippets with markdown markers.
+const HEADLINE_OPTS =
+  "StartSel=**, StopSel=**, MaxFragments=1, MaxWords=30, MinWords=10"
 
 export async function searchPortal(opts: SearchOpts): Promise<SearchResult[]> {
   const q = opts.query.trim()
@@ -86,19 +93,21 @@ export async function searchPortal(opts: SearchOpts): Promise<SearchResult[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-table FTS queries. Each weights title > body so a title hit always
 // outranks a body hit. `plainto_tsquery` keeps things forgiving for casual
-// queries (no operator syntax required).
+// queries (no operator syntax required). `ts_headline` returns a focused
+// fragment around the match.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function searchAssets(q: string, limit: number, origin: string): Promise<SearchResult[]> {
   const rows = await prisma.$queryRaw<
-    { id: string; title: string; description: string | null; type: string; updatedAt: Date; rank: number }[]
+    { id: string; title: string; description: string | null; type: string; updatedAt: Date; rank: number; headline: string | null }[]
   >`
     SELECT id, title, description, "type"::text AS type, "updatedAt",
       ts_rank_cd(
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(description,'')), 'B'),
         plainto_tsquery('english', ${q})
-      ) AS rank
+      ) AS rank,
+      ts_headline('english', coalesce(description, title), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "Asset"
     WHERE "publishedAt" IS NOT NULL
       AND (
@@ -108,28 +117,82 @@ async function searchAssets(q: string, limit: number, origin: string): Promise<S
     ORDER BY rank DESC
     LIMIT ${limit}
   `
+  if (rows.length === 0) return []
+
+  // Attach the default-variant download URL inline so an agent gets the
+  // consumable file in the same response — no second portal_get_asset call
+  // just to find out where the PDF lives.
+  const downloads = await resolveDefaultVariantDownloads(rows.map((r) => r.id))
+
   return rows.map((r) => ({
     type: "asset" as const,
     id: r.id,
     title: r.title,
-    snippet: snippet(r.description),
-    url: assetUrl(origin, r.id, r.type),
+    snippet: r.headline,
+    // Deep-link directly to the asset drawer on the matching category page.
+    url: assetPortalUrl(origin, r.type, r.id),
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),
     meta: { assetType: r.type },
+    download: downloads.get(r.id) ?? null,
   }))
+}
+
+/**
+ * For each asset id, look up its default (first by displayOrder) variant and
+ * return a presigned-or-external download block. Used by both /api/v1/search
+ * and /api/v1/assets so they expose consumable URLs inline.
+ */
+export async function resolveDefaultVariantDownloads(
+  assetIds: string[]
+): Promise<Map<string, AssetDownloadInfo>> {
+  if (assetIds.length === 0) return new Map()
+
+  const assets = await prisma.asset.findMany({
+    where: { id: { in: assetIds } },
+    select: {
+      id: true,
+      variants: {
+        orderBy: [{ displayOrder: "asc" }, { language: "asc" }],
+        take: 1,
+        select: { language: true, fileUrl: true, fileType: true, fileSize: true, externalLink: true },
+      },
+    },
+  })
+
+  // Batch-presign — getPresignedUrls is cached, so a search across pages of
+  // the same content doesn't re-sign every time.
+  const fileUrls = assets.map((a) => a.variants[0]?.fileUrl ?? null)
+  const presigned = await getPresignedUrls(fileUrls)
+  const expiresAt = new Date(Date.now() + DOWNLOAD_URL_VALID_FOR_MS).toISOString()
+
+  const out = new Map<string, AssetDownloadInfo>()
+  assets.forEach((a, i) => {
+    const v = a.variants[0]
+    if (!v) return
+    out.set(a.id, {
+      url: presigned[i],
+      externalLink: v.externalLink,
+      expiresAt: presigned[i] ? expiresAt : null,
+      fileType: v.fileType,
+      fileSize: v.fileSize,
+      language: v.language,
+    })
+  })
+  return out
 }
 
 async function searchDocs(q: string, limit: number, origin: string): Promise<SearchResult[]> {
   const rows = await prisma.$queryRaw<
-    { id: string; title: string; summary: string; deepLink: string; updatedAt: Date; rank: number }[]
+    { id: string; title: string; summary: string; deepLink: string; updatedAt: Date; rank: number; headline: string | null }[]
   >`
     SELECT id, title, summary, "deepLink", "updatedAt",
       ts_rank_cd(
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(summary,'')), 'B'),
         plainto_tsquery('english', ${q})
-      ) AS rank
+      ) AS rank,
+      ts_headline('english', coalesce(summary, title), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "DocsUpdate"
     WHERE "publishedAt" IS NOT NULL
       AND (
@@ -143,8 +206,8 @@ async function searchDocs(q: string, limit: number, origin: string): Promise<Sea
     type: "docs_update" as const,
     id: r.id,
     title: r.title,
-    snippet: snippet(r.summary),
-    // Docs deepLink is external (GitBook); fall back to the portal page.
+    snippet: r.headline,
+    // Docs deepLink is the external (GitBook) page — most useful for agents.
     url: r.deepLink || `${origin}/docs-updates`,
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),
@@ -155,7 +218,7 @@ async function searchProductUpdates(q: string, limit: number, origin: string): P
   const rows = await prisma.$queryRaw<
     {
       id: string; title: string; content: string; updateType: string;
-      releaseDate: Date | null; updatedAt: Date; rank: number
+      releaseDate: Date | null; updatedAt: Date; rank: number; headline: string | null
     }[]
   >`
     SELECT id, title, content, "updateType", "releaseDate", "updatedAt",
@@ -163,7 +226,8 @@ async function searchProductUpdates(q: string, limit: number, origin: string): P
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(content,'')), 'B'),
         plainto_tsquery('english', ${q})
-      ) AS rank
+      ) AS rank,
+      ts_headline('english', coalesce(content, title), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "ProductUpdate"
     WHERE "publishedAt" IS NOT NULL
       AND (
@@ -177,7 +241,7 @@ async function searchProductUpdates(q: string, limit: number, origin: string): P
     type: "product_update" as const,
     id: r.id,
     title: r.title,
-    snippet: snippet(r.content),
+    snippet: r.headline,
     url: `${origin}/product`,
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),
@@ -189,7 +253,7 @@ async function searchTeam(q: string, limit: number, origin: string): Promise<Sea
   const rows = await prisma.$queryRaw<
     {
       id: string; name: string; role: string; department: string;
-      bio: string | null; updatedAt: Date; rank: number
+      bio: string | null; updatedAt: Date; rank: number; headline: string | null
     }[]
   >`
     SELECT id, name, role, department, bio, "updatedAt",
@@ -199,7 +263,8 @@ async function searchTeam(q: string, limit: number, origin: string): Promise<Sea
         setweight(to_tsvector('english', coalesce(department,'')), 'B') ||
         setweight(to_tsvector('english', coalesce(bio,'')), 'C'),
         plainto_tsquery('english', ${q})
-      ) AS rank
+      ) AS rank,
+      ts_headline('english', coalesce(bio, role || ' · ' || department), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "TeamMember"
     WHERE (
         setweight(to_tsvector('english', coalesce(name,'')), 'A') ||
@@ -214,7 +279,7 @@ async function searchTeam(q: string, limit: number, origin: string): Promise<Sea
     type: "team_member" as const,
     id: r.id,
     title: r.name,
-    snippet: snippet(`${r.role} · ${r.department}${r.bio ? " — " + r.bio : ""}`),
+    snippet: r.headline,
     url: `${origin}/who-is-who`,
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),
@@ -226,7 +291,7 @@ async function searchFeatured(q: string, limit: number, origin: string): Promise
   const rows = await prisma.$queryRaw<
     {
       id: string; title: string; description: string | null;
-      entityType: string; updatedAt: Date; rank: number
+      entityType: string; updatedAt: Date; rank: number; headline: string | null
     }[]
   >`
     SELECT id, title, description, "entityType", "updatedAt",
@@ -234,7 +299,8 @@ async function searchFeatured(q: string, limit: number, origin: string): Promise
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(description,'')), 'B'),
         plainto_tsquery('english', ${q})
-      ) AS rank
+      ) AS rank,
+      ts_headline('english', coalesce(description, title), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "FeaturedContent"
     WHERE ("endDate" IS NULL OR "endDate" > NOW())
       AND "startDate" <= NOW()
@@ -249,7 +315,7 @@ async function searchFeatured(q: string, limit: number, origin: string): Promise
     type: "featured" as const,
     id: r.id,
     title: r.title,
-    snippet: snippet(r.description),
+    snippet: r.headline,
     url: `${origin}/`,
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),

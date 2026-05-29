@@ -1,62 +1,57 @@
-import Link from "next/link"
-import { Code, Plug } from "lucide-react"
+import { Code as CodeIcon, Plug } from "lucide-react"
+import {
+  H1, H2, Lede, P, A, Ol, Li, Pre, Code, CardGrid, CardLink,
+} from "@/components/docs/Prose"
 
 export default function DocsIndexPage() {
   return (
-    <article className="prose prose-gray max-w-none">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Developer docs</h1>
-      <p className="text-gray-600">
+    <article>
+      <H1>Developer docs</H1>
+      <Lede>
         Read-only API access to the same portal content a partner sees in the
         UI — assets, documentation updates, product updates, featured content,
         and the Who&apos;s Who directory. Built for AI agents and headless
         integrations.
-      </p>
+      </Lede>
 
-      <div className="grid sm:grid-cols-2 gap-4 mt-8 not-prose">
-        <Link
+      <CardGrid>
+        <CardLink
           href="/docs/api"
-          className="block p-5 rounded-lg border border-gray-200 bg-white hover:border-primary hover:shadow-sm transition"
-        >
-          <Code className="w-6 h-6 text-primary mb-2" />
-          <div className="font-semibold text-gray-900">REST API reference</div>
-          <p className="text-sm text-gray-600 mt-1">
-            Endpoints, request/response shapes, code samples, and the
-            <code className="text-xs"> openapi.json</code> spec.
-          </p>
-        </Link>
-        <Link
+          icon={<CodeIcon className="w-6 h-6" />}
+          title="REST API reference"
+          description={
+            <>
+              Endpoints, request and response shapes, code samples, and a link
+              to the machine-readable <Code>openapi.json</Code>.
+            </>
+          }
+        />
+        <CardLink
           href="/docs/mcp"
-          className="block p-5 rounded-lg border border-gray-200 bg-white hover:border-primary hover:shadow-sm transition"
-        >
-          <Plug className="w-6 h-6 text-primary mb-2" />
-          <div className="font-semibold text-gray-900">MCP integration guide</div>
-          <p className="text-sm text-gray-600 mt-1">
-            Wire the portal into Claude Desktop or Claude Code in two minutes
-            using the MCP server.
-          </p>
-        </Link>
-      </div>
+          icon={<Plug className="w-6 h-6" />}
+          title="MCP integration guide"
+          description="Wire the portal into Claude Desktop or Claude Code in two minutes using the MCP server."
+        />
+      </CardGrid>
 
-      <h2>Quick start</h2>
-      <ol>
-        <li>
-          <Link href="/settings/api-keys">Generate an API key</Link> in the
-          portal (sign in with your partner email first).
-        </li>
-        <li>
-          Try a request:
-          <pre>
-            <code>{`curl -H "Authorization: Bearer colect_pk_…" \\
-  https://partnerportal.colect.io/api/v1/me`}</code>
-          </pre>
-        </li>
-        <li>
-          Hand the URL <code>https://partnerportal.colect.io/api/v1/openapi.json</code>{" "}
-          to your agent to ingest the full API as a tool catalog, or follow the{" "}
-          <Link href="/docs/mcp">MCP guide</Link> for a native Claude
-          integration.
-        </li>
-      </ol>
+      <H2>Quick start</H2>
+      <Ol>
+        <Li>
+          <A href="/settings/api-keys">Generate an API key</A> in the portal
+          (sign in with your partner email first).
+        </Li>
+        <Li>
+          Smoke-test it:
+          <Pre language="bash">{`curl -H "Authorization: Bearer colect_pk_..." \\
+  https://partnerportal.colect.io/api/v1/me`}</Pre>
+        </Li>
+        <Li>
+          Hand the URL{" "}
+          <Code>https://partnerportal.colect.io/api/v1/openapi.json</Code> to
+          your agent to ingest the full API as a tool catalog, or follow the{" "}
+          <A href="/docs/mcp">MCP guide</A> for the native Claude integration.
+        </Li>
+      </Ol>
     </article>
   )
 }
