@@ -6,7 +6,7 @@ import { getPresignedUploadUrl } from "@/lib/s3"
 const uploadRequestSchema = z.object({
   filename: z.string().min(1),
   contentType: z.string().min(1),
-  folder: z.enum(["assets", "thumbnails", "team-photos", "campaigns"]).optional(),
+  folder: z.enum(["assets", "thumbnails", "team-photos", "campaigns", "videos"]).optional(),
 })
 
 export async function POST(request: NextRequest) {

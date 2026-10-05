@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download
 import { cn, getDateStatus } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 
 export interface ContentItem {
   id: string
@@ -38,6 +39,10 @@ export interface ContentItem {
   isNew?: boolean
   campaignGoal?: string | null
   sentAt?: string | null
+  // Employee-only: present in API responses for Colect / Le New Black staff
+  // only (see src/lib/access.ts). Partners never receive these keys.
+  visibility?: "EVERYONE" | "EMPLOYEES"
+  brand?: "COLECT" | "LE_NEW_BLACK" | "BOTH" | null
   createdAt?: string
   updatedAt?: string
   isPinned?: boolean
@@ -400,6 +405,7 @@ function ContentCard({
 
       {/* Content */}
       <div className="p-3">
+        <AudienceBadges visibility={item.visibility} brand={item.brand} className="mb-1" />
         <h3
           className="font-medium text-gray-900 line-clamp-1 group-hover/card:text-primary transition-colors tooltip"
           data-tooltip={item.title}

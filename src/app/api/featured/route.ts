@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, requireSession } from "@/lib/supertokens/session"
+import { requireAdmin } from "@/lib/supertokens/session"
 import { z } from "zod"
 
 const FeaturedContentSchema = z.object({
@@ -13,9 +13,11 @@ const FeaturedContentSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
 })
 
+// Admin only: includes every featured row with its full linked asset,
+// regardless of schedule or visibility.
 export async function GET(request: NextRequest) {
   try {
-    await requireSession()
+    await requireAdmin()
 
     const featuredContent = await prisma.featuredContent.findMany({
       orderBy: { displayOrder: "asc" },
@@ -28,6 +30,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(featuredContent)
   } catch (error) {
+    if (error instanceof Error && /^(Unauthorized|Forbidden)/.test(error.message)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Error fetching featured content:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

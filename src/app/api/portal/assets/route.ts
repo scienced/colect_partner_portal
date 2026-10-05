@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "@/lib/supertokens/session"
+import { getSessionViewer } from "@/lib/supertokens/session"
+import { assetAccessWhere, shapeAssetForViewer } from "@/lib/access"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
 import { AssetType } from "@prisma/client"
@@ -7,10 +8,11 @@ import { canonicalLanguage, defaultVariant } from "@/lib/assetVariants"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    const auth = await getSessionViewer()
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { viewer } = auth
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
@@ -23,6 +25,7 @@ export async function GET(request: NextRequest) {
         ...(type ? { type: type as AssetType } : {}),
         ...(language ? { availableLanguages: { has: canonicalLanguage(language) } } : {}),
         publishedAt: { not: null },
+        ...assetAccessWhere(viewer),
       },
       orderBy: [
         // Pinned items first (active pins only)
@@ -48,6 +51,8 @@ export async function GET(request: NextRequest) {
         pinnedAt: true,
         pinExpiresAt: true,
         pinOrder: true,
+        visibility: true,
+        brand: true,
         variants: {
           select: {
             id: true,
@@ -110,7 +115,7 @@ export async function GET(request: NextRequest) {
     const assetsWithUrls = processedAssets.map((asset, i) => {
       const def = defaultVariant(asset.variants)
       return {
-        ...asset,
+        ...shapeAssetForViewer(viewer, asset),
         thumbnailUrl: presignedThumbnails[i],
         fileUrl: presignedDefaultFiles[i],
         externalLink: def?.externalLink ?? null,

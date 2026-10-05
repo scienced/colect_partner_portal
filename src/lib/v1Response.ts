@@ -18,9 +18,9 @@ const SECURITY_HEADERS = {
   "X-Robots-Tag": "noindex",
 }
 
-export function ok<T>(data: T, init?: { headers?: Record<string, string> }): NextResponse {
+export function ok<T>(data: T, init?: { status?: number; headers?: Record<string, string> }): NextResponse {
   return NextResponse.json(data, {
-    status: 200,
+    status: init?.status ?? 200,
     headers: { ...SECURITY_HEADERS, ...(init?.headers ?? {}) },
   })
 }

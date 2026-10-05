@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
             not: null,
             gt: sinceDate,
           },
+          // The digest goes to every user, partners included.
+          visibility: "EVERYONE",
         },
         select: {
           id: true,

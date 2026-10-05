@@ -5,6 +5,18 @@ import { prisma } from "@/lib/prisma"
 import { AssetType, Prisma } from "@prisma/client"
 import { assetPortalUrl } from "@/lib/portalUrls"
 import { resolveDefaultVariantDownloads } from "@/lib/v1Search"
+import { assetAccessWhere, internalAssetFields } from "@/lib/access"
+import { AssetWriteError, createAsset } from "@/lib/assetWrites"
+import {
+  V1CreateAssetSchema,
+  V1InputError,
+  apiChangeNote,
+  canWriteContent,
+  serializeAssetDetail,
+  toCreateInput,
+  zodMessage,
+} from "@/lib/v1Content"
+import { SCOPE_WRITE } from "@/lib/v1Auth"
 
 export const dynamic = "force-dynamic"
 
@@ -40,8 +52,38 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     updatedSince = parsed
   }
 
+  // Employee-only filters. For partners these params are ignored rather than
+  // rejected, so a partner can't use the error to learn the fields exist.
+  const { viewer } = auth
+  const visibilityParam = searchParams.get("visibility")?.toUpperCase()
+  const brandParam = searchParams.get("brand")?.toUpperCase()
+  if (viewer.isEmployee && visibilityParam && !["EVERYONE", "EMPLOYEES"].includes(visibilityParam)) {
+    return httpErrors.badRequest("`visibility` must be EVERYONE or EMPLOYEES.")
+  }
+  if (viewer.isEmployee && brandParam && !["COLECT", "LE_NEW_BLACK", "BOTH"].includes(brandParam)) {
+    return httpErrors.badRequest("`brand` must be COLECT, LE_NEW_BLACK or BOTH.")
+  }
+
+  // ?status=draft|all — only for keys that can write content (admins), so an
+  // agent can find the drafts it created. Everyone else sees published only.
+  const status = searchParams.get("status")?.toLowerCase() || "published"
+  if (!["published", "draft", "all"].includes(status)) {
+    return httpErrors.badRequest("`status` must be published, draft or all.")
+  }
+  if (status !== "published" && !canWriteContent(auth)) {
+    return httpErrors.forbidden("Only keys with content write access can list drafts.")
+  }
+  const publishedFilter: Prisma.AssetWhereInput =
+    status === "all" ? {} : status === "draft" ? { publishedAt: null } : { publishedAt: { not: null } }
+
   const where: Prisma.AssetWhereInput = {
-    publishedAt: { not: null },
+    ...publishedFilter,
+    ...assetAccessWhere(viewer),
+    ...(viewer.isEmployee && visibilityParam ? { visibility: visibilityParam as "EVERYONE" | "EMPLOYEES" } : {}),
+    // brand=COLECT also matches BOTH — "content for Colect" includes shared content.
+    ...(viewer.isEmployee && brandParam
+      ? { brand: brandParam === "BOTH" ? "BOTH" : { in: [brandParam as "COLECT" | "LE_NEW_BLACK", "BOTH"] } }
+      : {}),
     ...(typeParam ? { type: typeParam as AssetType } : {}),
     ...(region ? { region: { has: region } } : {}),
     ...(persona ? { persona: { has: persona } } : {}),
@@ -73,6 +115,8 @@ export const GET = withV1Handler(async (request: NextRequest) => {
         createdAt: true,
         updatedAt: true,
         publishedAt: true,
+        visibility: true,
+        brand: true,
         variants: {
           select: { language: true, fileType: true, fileSize: true, externalLink: true },
           orderBy: [{ displayOrder: "asc" }, { language: "asc" }],
@@ -103,6 +147,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
       createdAt: a.createdAt.toISOString(),
       updatedAt: a.updatedAt.toISOString(),
       publishedAt: a.publishedAt?.toISOString() ?? null,
+      ...internalAssetFields(viewer, a),
       variants: a.variants,
       portalUrl: assetPortalUrl(origin, a.type, a.id),
       detailUrl: `${origin}/api/v1/assets/${a.id}`,
@@ -113,6 +158,26 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     offset,
     nextOffset: offset + items.length < total ? offset + items.length : null,
   })
+})
+
+// POST: create an asset (write-scoped admin keys only).
+export const POST = withV1Handler(async (request: NextRequest) => {
+  const auth = await requireApiKey(request, { scope: SCOPE_WRITE })
+  if (isAuthResponse(auth)) return auth
+
+  const json = await request.json().catch(() => null)
+  const parsed = V1CreateAssetSchema.safeParse(json)
+  if (!parsed.success) return httpErrors.badRequest(zodMessage(parsed.error))
+
+  try {
+    const input = await toCreateInput(parsed.data)
+    const asset = await createAsset(input, apiChangeNote(auth))
+    const body = await serializeAssetDetail(asset, auth.viewer, getCanonicalOrigin(request))
+    return ok(body, { status: 201 })
+  } catch (e) {
+    if (e instanceof V1InputError || e instanceof AssetWriteError) return httpErrors.badRequest(e.message)
+    throw e
+  }
 })
 
 function clampInt(raw: string | null, min: number, max: number, fallback: number): number {

@@ -8,8 +8,9 @@ export default function ApiDocsPage() {
     <article>
       <H1>REST API reference</H1>
       <Lede>
-        Version 1. Stable. The same surface a logged-in partner sees in the
-        portal UI, scoped to your identity — nothing more, nothing less.
+        Version 1. Stable. The same content you see in the portal UI, scoped
+        to your identity — nothing more, nothing less. Admins can also create
+        and edit content with a write-enabled key.
       </Lede>
 
       {/* ──────────────────────────────────────────────────────────────── */}
@@ -35,6 +36,12 @@ export default function ApiDocsPage() {
         domain can list and revoke any key — label your keys clearly so
         colleagues can spot stale ones.
       </Callout>
+      <P>
+        <strong>Employee keys.</strong> Keys owned by Colect or Le New Black
+        staff also see content marked <Code>visibility: EMPLOYEES</Code>, and
+        every asset carries <Code>visibility</Code> and <Code>brand</Code>{" "}
+        fields. Partner keys never see either.
+      </P>
 
       {/* ──────────────────────────────────────────────────────────────── */}
       <H2 id="errors">Errors</H2>
@@ -53,6 +60,7 @@ export default function ApiDocsPage() {
         rows={[
           { status: "400", code: "bad_request", meaning: "Missing/invalid query parameter." },
           { status: "401", code: "unauthorized", meaning: "Missing or invalid API key." },
+          { status: "403", code: "forbidden", meaning: "Key can't do this (e.g. a read-only key calling a write endpoint)." },
           { status: "404", code: "not_found", meaning: "Resource doesn't exist or isn't published." },
           { status: "429", code: "rate_limited", meaning: "Burst exceeded the per-key cap. Back off." },
           { status: "500", code: "server_error", meaning: "Unexpected — retry once, then report." },
@@ -216,6 +224,9 @@ export default function ApiDocsPage() {
             { name: "region", type: "string", description: <>e.g. <Code>EMEA</Code>, <Code>APAC</Code>, <Code>Americas</Code>.</> },
             { name: "persona", type: "string", description: <>e.g. <Code>Sales</Code>, <Code>Marketing</Code>, <Code>Technical</Code>.</> },
             { name: "language", type: "string", description: <>Filter to assets that have a variant in this language (e.g. <Code>EN</Code>, <Code>FR</Code>).</> },
+            { name: "visibility", type: "EVERYONE | EMPLOYEES", description: "Employee keys only." },
+            { name: "brand", type: "COLECT | LE_NEW_BLACK | BOTH", description: <>Employee keys only. <Code>COLECT</Code> and <Code>LE_NEW_BLACK</Code> also include <Code>BOTH</Code>.</> },
+            { name: "status", type: "published | draft | all", description: <>Default <Code>published</Code>. Drafts need a write-enabled key.</> },
             { name: "limit", type: "integer 1–100", description: <>Default <Code>50</Code>.</> },
             { name: "offset", type: "integer ≥ 0", description: <>Default <Code>0</Code>.</> },
           ]}
@@ -226,8 +237,9 @@ export default function ApiDocsPage() {
       <Endpoint id="endpoint-asset-detail" method="GET" path="/api/v1/assets/{id}">
         <P>
           Asset detail, including per-language download URLs. URLs are
-          presigned and short-lived (~5 minutes) — fetch fresh ones each time
-          you need to actually download.
+          presigned and short-lived (see <Code>downloadUrlExpiresAt</Code>,
+          about 15 minutes) — fetch fresh ones each time you need to actually
+          download.
         </P>
         <Callout type="info">
           Some variants point at an external link (e.g. YouTube) instead of an
@@ -285,6 +297,87 @@ export default function ApiDocsPage() {
       </Endpoint>
 
       {/* ──────────────────────────────────────────────────────────────── */}
+      <H2 id="writing">Creating and editing content</H2>
+      <P>
+        Admins can create a key with <strong>Allow creating and editing
+        content</strong> ticked at <A href="/settings/api-keys">/settings/api-keys</A>{" "}
+        (scope <Code>write:content</Code>). Those keys can upload files and
+        create or edit assets. Writes stop working the moment the owner is no
+        longer an admin. Nothing can be deleted through the API.
+      </P>
+      <P>Uploading a deck takes three calls:</P>
+      <Pre language="bash">{`# 1. Ask for an upload URL
+curl -X POST https://partnerportal.colect.io/api/v1/uploads \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"filename":"pricing.pdf","contentType":"application/pdf","assetType":"DECK"}'
+
+# 2. PUT the bytes to the returned uploadUrl, with the same Content-Type
+curl -X PUT -H "Content-Type: application/pdf" --data-binary @pricing.pdf "$UPLOAD_URL"
+
+# 3. Create the asset with the returned fileUrl
+curl -X POST https://partnerportal.colect.io/api/v1/assets \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{
+    "type": "DECK",
+    "title": "Pricing playbook 2027",
+    "visibility": "EMPLOYEES",
+    "brand": "LE_NEW_BLACK",
+    "publish": true,
+    "files": [{ "language": "EN", "fileUrl": "$FILE_URL" }]
+  }'`}</Pre>
+
+      <Endpoint id="endpoint-uploads" method="POST" path="/api/v1/uploads">
+        <P>
+          Returns a presigned <Code>uploadUrl</Code> (valid one hour), the{" "}
+          <Code>headers</Code> to send with the PUT, and the{" "}
+          <Code>fileUrl</Code> to use afterwards.
+        </P>
+        <ParamTable
+          rows={[
+            { name: "filename", type: "string", description: "Original file name." },
+            { name: "contentType", type: "string", description: <>MIME type, e.g. <Code>application/pdf</Code>. The PUT must send the same value.</> },
+            { name: "purpose", type: "file | thumbnail", description: <>Default <Code>file</Code>. A thumbnail must be an image; it&apos;s resized to 800×450 when used.</> },
+            { name: "assetType", type: "DECK | CAMPAIGN | ASSET | VIDEO", description: "Which asset the file is for (picks the storage folder)." },
+          ]}
+        />
+      </Endpoint>
+
+      <Endpoint id="endpoint-create-asset" method="POST" path="/api/v1/assets">
+        <P>
+          Create an asset. The response has the same shape as{" "}
+          <Code>GET /api/v1/assets/{"{id}"}</Code>. Saved as a draft unless{" "}
+          <Code>publish</Code> is <Code>true</Code>.
+        </P>
+        <ParamTable
+          rows={[
+            { name: "type", type: "DECK | CAMPAIGN | ASSET | VIDEO", description: "Required." },
+            { name: "title", type: "string", description: "Required. Max 200 characters." },
+            { name: "visibility", type: "EVERYONE | EMPLOYEES", description: <>Required. <Code>EVERYONE</Code> includes partners; <Code>EMPLOYEES</Code> is Colect and Le New Black staff only.</> },
+            { name: "files", type: "array", description: <>Required. One entry per language: <Code>{"{ language, fileUrl?, externalLink? }"}</Code>. Languages: EN, DE, FR, NL.</> },
+            { name: "brand", type: "COLECT | LE_NEW_BLACK | BOTH", description: "Optional internal tag, only shown to employees." },
+            { name: "publish", type: "boolean", description: <>Default <Code>false</Code> (draft).</> },
+            { name: "description", type: "string", description: "Optional." },
+            { name: "thumbnailUrl", type: "string", description: <>Optional. A <Code>fileUrl</Code> from an upload with purpose <Code>thumbnail</Code>.</> },
+            { name: "persona / region", type: "string[]", description: "Optional filters, e.g. Sales, EMEA." },
+            { name: "campaignGoal / campaignLink / sentAt", type: "string", description: "Optional, for campaigns." },
+          ]}
+        />
+      </Endpoint>
+
+      <Endpoint id="endpoint-update-asset" method="PATCH" path="/api/v1/assets/{id}">
+        <P>
+          Edit an asset. Send only what changes; the fields are the same as for
+          create. <Code>files</Code> replaces <em>all</em> language versions, so
+          include the ones to keep. <Code>publish: false</Code> unpublishes;{" "}
+          <Code>brand: null</Code> clears the tag.
+        </P>
+      </Endpoint>
+      <P>
+        Write-enabled keys can also read drafts: <Code>GET /api/v1/assets?status=draft</Code>{" "}
+        (or <Code>all</Code>) and <Code>GET /api/v1/assets/{"{id}"}</Code> for an unpublished asset.
+      </P>
+
+      {/* ──────────────────────────────────────────────────────────────── */}
       <H2 id="agents">Using with an AI agent</H2>
       <P>
         Most modern agents (Claude, ChatGPT, LangChain/LlamaIndex tools, custom
@@ -293,9 +386,10 @@ export default function ApiDocsPage() {
       </P>
       <Pre>{`https://partnerportal.colect.io/api/v1/openapi.json`}</Pre>
       <P>
-        and the API key. For Claude Desktop or Claude Code specifically, the{" "}
-        <A href="/docs/mcp">MCP guide</A> is the smoother path — it installs
-        the same surface as native tools.
+        and the API key. For Claude Code, Claude Desktop and other MCP
+        clients, the <A href="/docs/mcp">MCP guide</A> is the smoother path —
+        connect to the hosted server and the same surface appears as native
+        tools, with nothing to install.
       </P>
 
       {/* ──────────────────────────────────────────────────────────────── */}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "@/lib/supertokens/session"
+import { getSessionViewer } from "@/lib/supertokens/session"
+import { assetAccessWhere, internalAssetFields } from "@/lib/access"
 import { trackSearchQuery } from "@/lib/analytics"
 import { getPresignedUrls } from "@/lib/s3"
 import { defaultVariant } from "@/lib/assetVariants"
@@ -23,10 +24,11 @@ function getYouTubeThumbnail(url: string | null): string | null {
 export async function GET(request: NextRequest) {
   try {
     // Check session - return 401 if not authenticated
-    const session = await getServerSession()
-    if (!session) {
+    const auth = await getSessionViewer()
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { session, viewer } = auth
 
     const { searchParams } = new URL(request.url)
     const query = searchParams.get("q")?.trim()
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
         where: {
           AND: [
             { publishedAt: { not: null } },
+            assetAccessWhere(viewer),
             {
               OR: [
                 { title: { contains: query, mode: "insensitive" } },
@@ -70,6 +73,8 @@ export async function GET(request: NextRequest) {
           sentAt: true,
           createdAt: true,
           updatedAt: true,
+          visibility: true,
+          brand: true,
           variants: {
             select: {
               id: true,
@@ -185,6 +190,7 @@ export async function GET(request: NextRequest) {
         sentAt: a.sentAt?.toISOString() || null,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
+        ...internalAssetFields(viewer, a),
       }
     })
 

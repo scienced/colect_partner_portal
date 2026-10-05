@@ -1,5 +1,14 @@
 # `@colect/portal-mcp`
 
+> **Use the hosted server instead.** The portal now serves MCP itself at
+> `https://partnerportal.colect.io/api/v1/mcp` (Streamable HTTP, Bearer API
+> key) — nothing to install, and it includes the content write tools for
+> admin keys. Setup: <https://partnerportal.colect.io/docs/mcp>.
+>
+> This local stdio server is kept for offline development only. It is
+> read-only and was never published to npm, so `npx @colect/portal-mcp`
+> does not work — run it from this folder with `node index.js`.
+
 MCP server that exposes the Colect Partner Portal content as native Claude tools.
 Once configured, Claude can search, list, and fetch portal assets, docs updates,
 product updates, the team directory, and featured content directly — without

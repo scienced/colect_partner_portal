@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "@/lib/supertokens/session"
+import { getSessionViewer } from "@/lib/supertokens/session"
+import { canSeeAsset } from "@/lib/access"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrlIfNeeded } from "@/lib/s3"
 import { canonicalLanguage } from "@/lib/assetVariants"
@@ -17,8 +18,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    const auth = await getSessionViewer()
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -33,13 +34,14 @@ export async function GET(
     }
     const language = canonicalLanguage(languageParam)
 
-    // Authorization: only return variants of PUBLISHED assets. Partners must
-    // not be able to fetch drafts by guessing an asset id.
+    // Authorization: only return variants of PUBLISHED assets the viewer may
+    // see. Partners must not fetch drafts or employee-only files by guessing
+    // an asset id — both look like a plain 404.
     const asset = await prisma.asset.findUnique({
       where: { id },
-      select: { publishedAt: true },
+      select: { publishedAt: true, visibility: true },
     })
-    if (!asset || !asset.publishedAt) {
+    if (!asset || !asset.publishedAt || !canSeeAsset(auth.viewer, asset)) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 

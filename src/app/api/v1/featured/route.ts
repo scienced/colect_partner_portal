@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
 import { ok, withV1Handler } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
+import { featuredAccessWhere } from "@/lib/access"
 
 export const dynamic = "force-dynamic"
 
@@ -14,7 +15,10 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const items = await prisma.featuredContent.findMany({
     where: {
       startDate: { lte: now },
-      OR: [{ endDate: null }, { endDate: { gt: now } }],
+      AND: [
+        { OR: [{ endDate: null }, { endDate: { gt: now } }] },
+        featuredAccessWhere(auth.viewer),
+      ],
     },
     orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
     select: {

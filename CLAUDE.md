@@ -77,8 +77,20 @@ Two main areas:
 - `Changelog`: Audit trail of entity changes (created/updated/deleted)
 - `AllowedDomain`: Partner company domain whitelist for login access control
 
+**Content visibility (employees vs partners)**:
+- `Asset.visibility` is `EVERYONE` or `EMPLOYEES`; `Asset.brand` is an optional internal tag (`COLECT` / `LE_NEW_BLACK` / `BOTH`).
+- A user is an *employee* when they're an admin or their login domain's `AllowedDomain.organization` is `COLECT` or `LE_NEW_BLACK` (set on Admin → Partner Access).
+- Every asset read path must use `src/lib/access.ts`: filter with `assetAccessWhere(viewer)` and shape responses with `shapeAssetForViewer` / `internalAssetFields` so partners never receive `visibility`/`brand`. Get the viewer via `getSessionViewer()` (portal) or `auth.viewer` (v1).
+
+**Agent API + MCP** (`/api/v1/*`):
+- API keys (`/settings/api-keys`) carry scopes: `read:portal` always, `write:content` only for admins. `requireApiKey(request, { scope: SCOPE_WRITE })` also re-checks the owner is still ADMIN.
+- Writes: `POST /api/v1/uploads` (presigned PUT) → `POST /api/v1/assets` / `PATCH /api/v1/assets/{id}`. Both admin and v1 writes go through `src/lib/assetWrites.ts`; v1 input mapping lives in `src/lib/v1Content.ts`. No deletes via API.
+- Hosted MCP server: `src/app/api/v1/mcp/route.ts` (stateless Streamable HTTP). Each tool invokes the matching v1 route handler in-process, so auth/visibility/audit are identical to REST. `mcp-server/` is a legacy local stdio copy.
+- Spec: `src/lib/openapi.ts` (served at `/api/v1/openapi.json`); public docs at `/docs/api` and `/docs/mcp`.
+
 ### Key Library Files
 
+- `src/lib/access.ts` — Employee/partner audience rules for assets (see above)
 - `src/lib/prisma.ts` — Singleton Prisma client with connection pooling
 - `src/lib/s3.ts` — All S3 operations and presigned URL management
 - `src/lib/swr.ts` — Typed SWR hooks for all data fetching

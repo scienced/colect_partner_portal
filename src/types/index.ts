@@ -67,6 +67,10 @@ export interface Asset {
   pinnedAt?: string | null
   pinExpiresAt?: string | null
   pinOrder?: number
+  // Employee-only: present in API responses for Colect / Le New Black staff
+  // only (see src/lib/access.ts). Partners never receive these keys.
+  visibility?: "EVERYONE" | "EMPLOYEES"
+  brand?: "COLECT" | "LE_NEW_BLACK" | "BOTH" | null
 }
 
 // Docs update — either a manual Prisma row or an auto-fetched GitBook page.
@@ -123,6 +127,9 @@ export interface SearchResult {
   sentAt?: string | null
   createdAt?: string
   updatedAt?: string
+  // Employee-only (see Asset)
+  visibility?: "EVERYONE" | "EMPLOYEES"
+  brand?: "COLECT" | "LE_NEW_BLACK" | "BOTH" | null
 }
 
 // Featured item from homepage API
@@ -160,6 +167,10 @@ export interface AssetInfo {
   sentAt?: string | null
   createdAt: string
   updatedAt: string
+  // Employee-only: present in API responses for Colect / Le New Black staff
+  // only (see src/lib/access.ts). Partners never receive these keys.
+  visibility?: "EVERYONE" | "EMPLOYEES"
+  brand?: "COLECT" | "LE_NEW_BLACK" | "BOTH" | null
 
   // Docs-specific fields (when type === "DOCS" from the GitBook auto-feed).
   // Manual DocsUpdate entries don't populate these — they use `description`

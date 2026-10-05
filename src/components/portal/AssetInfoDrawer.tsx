@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { defaultVariant as pickDefaultVariant, canonicalLanguage } from "@/lib/assetVariants"
 import type { AssetInfo, AssetVariant } from "@/types"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 
 const LANG_PREFERENCE_KEY = "portal:preferred-language"
 
@@ -260,6 +261,7 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
         <div className="p-6 space-y-6">
             {/* Title & Description */}
             <div>
+              <AudienceBadges visibility={asset.visibility} brand={asset.brand} className="mb-2" />
               <h2 className="text-xl font-semibold text-gray-900 leading-tight">
                 {asset.title}
               </h2>

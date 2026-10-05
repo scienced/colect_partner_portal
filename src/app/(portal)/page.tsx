@@ -56,6 +56,8 @@ export default function HomePage() {
     updatedAt?: string
     publishedAt?: string | null
     _type?: "asset" | "docs"
+    visibility?: ContentItem["visibility"]
+    brand?: ContentItem["brand"]
   }
 
   // Helper to transform raw data to ContentItem with all fields
@@ -83,6 +85,8 @@ export default function HomePage() {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       category: category as ContentItem["category"],
+      visibility: item.visibility,
+      brand: item.brand,
     }
   }, [])
 
@@ -168,6 +172,8 @@ export default function HomePage() {
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt,
     isPinned: deck.isPinned,
+    visibility: deck.visibility,
+    brand: deck.brand,
   }))
 
   const videoItems: ContentItem[] = videos.map((video) => ({
@@ -187,6 +193,8 @@ export default function HomePage() {
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
     isPinned: video.isPinned,
+    visibility: video.visibility,
+    brand: video.brand,
   }))
 
   const campaignItems: ContentItem[] = campaigns.map((campaign) => ({
@@ -209,6 +217,8 @@ export default function HomePage() {
     createdAt: campaign.createdAt,
     updatedAt: campaign.updatedAt,
     isPinned: campaign.isPinned,
+    visibility: campaign.visibility,
+    brand: campaign.brand,
   }))
 
   const assetItems: ContentItem[] = assets.map((asset) => ({
@@ -228,6 +238,8 @@ export default function HomePage() {
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
     isPinned: asset.isPinned,
+    visibility: asset.visibility,
+    brand: asset.brand,
   }))
 
   const docsItems: ContentItem[] = docsUpdates.map((doc) => ({
@@ -276,6 +288,8 @@ export default function HomePage() {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       isPinned: item.isPinned,
+      visibility: item.visibility,
+      brand: item.brand,
     }
   })
 

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input"
 import { Modal, ConfirmModal } from "@/components/ui/Modal"
 import { StatusBadge } from "@/components/layout/SectionHeader"
 import { AssetForm } from "./AssetForm"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 import {
   Plus,
   Search,
@@ -184,6 +185,7 @@ export function AssetsList({ initialAssets }: AssetsListProps) {
                     ) : (
                       <StatusBadge status="warning">Draft</StatusBadge>
                     )}
+                    <AudienceBadges visibility={asset.visibility} brand={asset.brand} />
                     {asset.availableLanguages && asset.availableLanguages.length > 0 && (
                       <div className="flex items-center gap-1">
                         {asset.availableLanguages.map((lang) => (

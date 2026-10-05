@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "@/lib/supertokens/session"
+import { getSessionViewer } from "@/lib/supertokens/session"
+import { assetAccessWhere, featuredAccessWhere, internalAssetFields, shapeAssetForViewer } from "@/lib/access"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
 import { defaultVariant } from "@/lib/assetVariants"
@@ -41,6 +42,8 @@ const assetSelect = {
   pinnedAt: true,
   pinExpiresAt: true,
   pinOrder: true,
+  visibility: true,
+  brand: true,
   variants: variantInclude,
 } as const
 
@@ -86,10 +89,12 @@ function processAssetPins<T extends { isPinned: boolean; pinExpiresAt: Date | nu
 
 export async function GET() {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    const auth = await getSessionViewer()
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { viewer } = auth
+    const access = assetAccessWhere(viewer)
 
     // Fetch all data in parallel
     const [
@@ -105,7 +110,11 @@ export async function GET() {
     ] = await Promise.all([
       prisma.featuredContent.findMany({
         where: {
-          OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+          AND: [
+            { OR: [{ endDate: null }, { endDate: { gt: new Date() } }] },
+            // Featured items pointing at an asset the viewer can't see are hidden.
+            featuredAccessWhere(viewer),
+          ],
         },
         orderBy: { displayOrder: "asc" },
         take: 5,
@@ -116,25 +125,25 @@ export async function GET() {
         },
       }),
       prisma.asset.findMany({
-        where: { type: "DECK", publishedAt: { not: null } },
+        where: { type: "DECK", publishedAt: { not: null }, ...access },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
         select: assetSelect,
       }),
       prisma.asset.findMany({
-        where: { type: "VIDEO", publishedAt: { not: null } },
+        where: { type: "VIDEO", publishedAt: { not: null }, ...access },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
         select: assetSelect,
       }),
       prisma.asset.findMany({
-        where: { type: "CAMPAIGN", publishedAt: { not: null } },
+        where: { type: "CAMPAIGN", publishedAt: { not: null }, ...access },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
         select: assetSelect,
       }),
       prisma.asset.findMany({
-        where: { type: "ASSET", publishedAt: { not: null } },
+        where: { type: "ASSET", publishedAt: { not: null }, ...access },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
         select: assetSelect,
@@ -145,7 +154,7 @@ export async function GET() {
         take: 8,
       }),
       prisma.asset.findMany({
-        where: { publishedAt: { not: null } },
+        where: { publishedAt: { not: null }, ...access },
         orderBy: { updatedAt: "desc" },
         take: 10,
         select: assetSelect,
@@ -162,10 +171,13 @@ export async function GET() {
     ])
 
     // Process pins (filter expired, re-sort) for each type
-    const processedDecks = processAssetPins(latestDecks)
-    const processedVideos = processAssetPins(latestVideos)
-    const processedCampaigns = processAssetPins(latestCampaigns)
-    const processedAssets = processAssetPins(latestAssets)
+    // shapeAssetForViewer swaps the raw visibility/brand columns for the
+    // viewer-appropriate fields — these rows are spread into the response.
+    const shape = <T extends Parameters<typeof shapeAssetForViewer>[1]>(a: T) => shapeAssetForViewer(viewer, a)
+    const processedDecks = processAssetPins(latestDecks).map(shape)
+    const processedVideos = processAssetPins(latestVideos).map(shape)
+    const processedCampaigns = processAssetPins(latestCampaigns).map(shape)
+    const processedAssets = processAssetPins(latestAssets).map(shape)
 
     // Merge manual docs updates with auto-fetched GitBook pages.
     // Rules:
@@ -229,7 +241,7 @@ export async function GET() {
     }
 
     // Build the recently-updated list (assets + docs interleaved by updatedAt)
-    const recentAssetsWithDefaults = recentAssets.map((a) => ({
+    const recentAssetsWithDefaults = recentAssets.map(shape).map((a) => ({
       ...a,
       _type: "asset" as const,
       _defaults: defaults(a),
@@ -393,6 +405,7 @@ export async function GET() {
             sentAt: asset.sentAt,
             createdAt: asset.createdAt,
             updatedAt: asset.updatedAt,
+            ...internalAssetFields(viewer, asset),
           },
         }
       }
