@@ -6,15 +6,21 @@
  * - Auth via GITBOOK_API_TOKEN env var (Bearer token, format gb_api_*).
  * - Scoped to GITBOOK_ORG_ID env var (Colect org on GitBook).
  * - Feature-flagged by env-var presence: returns [] silently if misconfigured.
- * - In-memory cache (30-min fresh, 60-min stale-on-error), backed by globalThis
- *   to survive Next.js HMR and request-worker recycling.
+ * - In-memory cache backed by globalThis (survives HMR / worker recycling),
+ *   stale-while-revalidate: after 30 min the cached list is still served
+ *   instantly while a background fetch refreshes it. A full fetch walks every
+ *   space's page tree and takes ~3–4 s, so no request should ever wait on it
+ *   once there is data. Only a cold cache waits, and only up to `maxWaitMs`.
+ * - The cache is warmed at server start (src/instrumentation.ts), so even the
+ *   first visitor after a deploy normally gets cached data.
  * - In-flight promise dedupe to prevent thundering-herd on cache expiry.
  */
 
 const API_BASE = "https://api.gitbook.com/v1"
 
-const CACHE_FRESH_MS = 30 * 60 * 1000 // 30 min
-const CACHE_STALE_MS = 60 * 60 * 1000 // 60 min — return stale on error up to this
+const CACHE_FRESH_MS = 30 * 60 * 1000 // 30 min — after this, refresh in the background
+const CACHE_MAX_STALE_MS = 24 * 60 * 60 * 1000 // serve stale data for up to a day
+const DEFAULT_MAX_WAIT_MS = 1500 // cold cache: how long a page may wait for GitBook
 const FETCH_TIMEOUT_MS = 5000
 const HARD_PAGE_CAP = 2000 // per space; prevent runaway memory on misconfiguration
 
@@ -87,7 +93,8 @@ function cache(): CacheState {
  * is misconfigured or GitBook is unreachable.
  */
 export async function getRecentlyUpdatedGitBookPages(
-  limit: number = 10
+  limit: number = 10,
+  opts: { maxWaitMs?: number } = {}
 ): Promise<GitBookDoc[]> {
   const token = process.env.GITBOOK_API_TOKEN
   const orgId = process.env.GITBOOK_ORG_ID
@@ -97,51 +104,59 @@ export async function getRecentlyUpdatedGitBookPages(
   }
 
   const c = cache()
-  const now = Date.now()
-  const age = now - c.lastSuccess
+  const hasData = c.lastSuccess > 0
+  const age = Date.now() - c.lastSuccess
 
   // 1. Fresh hit → return directly.
-  if (age < CACHE_FRESH_MS && c.lastSuccess > 0) {
+  if (hasData && age < CACHE_FRESH_MS) {
     return c.fresh.slice(0, limit)
   }
 
-  // 2. In-flight fetch → await the shared promise (thundering-herd dedupe).
-  if (c.inflight) {
-    try {
-      const fresh = await c.inflight
-      return fresh.slice(0, limit)
-    } catch {
-      // Fall through to stale handling.
-    }
+  // 2. Stale but usable → serve it now, refresh in the background.
+  if (hasData && age < CACHE_MAX_STALE_MS) {
+    startFetch(token, orgId).catch(() => {}) // errors already logged; keep stale data
+    return c.fresh.slice(0, limit)
   }
 
-  // 3. No fresh data and no in-flight → fire a new fetch.
-  const fetchPromise = fetchAndSortAll(token, orgId)
+  // 3. Cold (or day-old) cache → wait for a fetch, but never longer than
+  //    maxWaitMs. If GitBook is slower, the page renders without the auto
+  //    entries and the fetch keeps running to fill the cache for next time.
+  const maxWaitMs = opts.maxWaitMs ?? DEFAULT_MAX_WAIT_MS
+  let timer: NodeJS.Timeout | undefined
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), maxWaitMs)
+  })
+  const result = await Promise.race([startFetch(token, orgId).catch(() => null), timeout])
+  clearTimeout(timer)
+  if (result) return result.slice(0, limit)
+  return hasData ? c.fresh.slice(0, limit) : []
+}
+
+/** Start (or join) the single in-flight fetch that refreshes the cache. */
+function startFetch(token: string, orgId: string): Promise<GitBookDoc[]> {
+  const c = cache()
+  if (c.inflight) return c.inflight
+  const started = Date.now()
+  c.inflight = fetchAndSortAll(token, orgId)
     .then((result) => {
       c.fresh = result
       c.lastSuccess = Date.now()
+      console.log(`[gitbook] refreshed ${result.length} pages in ${Date.now() - started} ms`)
       return result
     })
     .catch((err) => {
       console.error("[gitbook] Fetch failed:", err instanceof Error ? err.message : err)
-      // Rethrow so the awaiting callers (dedupe path) see the error.
       throw err
     })
     .finally(() => {
       c.inflight = null
     })
-  c.inflight = fetchPromise
+  return c.inflight
+}
 
-  try {
-    const fresh = await fetchPromise
-    return fresh.slice(0, limit)
-  } catch {
-    // 4. Failure — serve stale if within the stale window.
-    if (age < CACHE_STALE_MS && c.fresh.length > 0) {
-      return c.fresh.slice(0, limit)
-    }
-    return []
-  }
+/** Fill the cache ahead of the first request (called at server start). */
+export async function warmGitBookCache(): Promise<void> {
+  await getRecentlyUpdatedGitBookPages(1, { maxWaitMs: 30_000 })
 }
 
 /**

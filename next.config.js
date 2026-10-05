@@ -2,6 +2,11 @@
 const nextConfig = {
   output: 'standalone',
 
+  // Runs src/instrumentation.ts once at server start (cache/DB warm-up).
+  experimental: {
+    instrumentationHook: true,
+  },
+
   // Compression
   compress: true,
 
