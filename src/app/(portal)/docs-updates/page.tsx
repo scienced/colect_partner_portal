@@ -52,7 +52,9 @@ export default async function DocsUpdatesPage() {
         { publishedAt: "desc" },
       ],
     }),
-    getRecentlyUpdatedGitBookPages(30),
+    // This page is the full docs list, so a cold cache may wait a bit longer
+    // than the homepage does (normally the cache is warm — see gitbook.ts).
+    getRecentlyUpdatedGitBookPages(30, { maxWaitMs: 5000 }),
   ])
 
   // Dedup: if a manual entry covers the same URL as an auto entry, keep the
