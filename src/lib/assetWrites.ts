@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { createChangelog } from "@/lib/changelog"
 import { z } from "zod"
+import type { AssetType } from "@prisma/client"
 import {
   canonicalLanguage,
   legacyColumnsFromVariants,
@@ -92,7 +93,7 @@ export const UpdateAssetSchema = z.object({
 export type CreateAssetInput = z.infer<typeof CreateAssetSchema>
 export type UpdateAssetInput = z.infer<typeof UpdateAssetSchema>
 
-async function assertPinCapacity(type: CreateAssetInput["type"], excludeId?: string) {
+async function assertPinCapacity(type: AssetType, excludeId?: string) {
   const pinnedCount = await prisma.asset.count({
     where: {
       type,
@@ -163,6 +164,9 @@ export async function updateAsset(id: string, data: UpdateAssetInput, changeNote
     include: { variants: true },
   })
   if (!existing) throw new AssetWriteError(404, "Asset not found")
+  if (existing.type === "SOCIAL_AD") {
+    throw new AssetWriteError(400, "This is an ad set — edit it on the Ads page.")
+  }
 
   // Check max pinned limit if trying to pin (and not already pinned)
   if (data.isPinned && !existing.isPinned) {

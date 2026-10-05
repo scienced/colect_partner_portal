@@ -130,6 +130,7 @@ export function AssetsList({ initialAssets }: AssetsListProps) {
             <option value="">All types</option>
             <option value="DECK">Decks</option>
             <option value="CAMPAIGN">Campaigns</option>
+            <option value="VIDEO">Videos</option>
             <option value="ASSET">Assets</option>
           </select>
         </div>

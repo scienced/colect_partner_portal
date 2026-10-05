@@ -17,7 +17,7 @@ const UploadSchema = z
     // resize into the portal thumbnail when the asset is created/updated.
     purpose: z.enum(["file", "thumbnail"]).default("file"),
     // Picks the storage folder for files, mirroring the admin uploader.
-    assetType: z.enum(["DECK", "CAMPAIGN", "ASSET", "VIDEO"]).optional(),
+    assetType: z.enum(["DECK", "CAMPAIGN", "ASSET", "VIDEO", "SOCIAL_AD"]).optional(),
   })
   .strict()
 
@@ -42,6 +42,8 @@ export const POST = withV1Handler(async (request: NextRequest) => {
   const folder =
     purpose === "thumbnail"
       ? "uploads"
+      : assetType === "SOCIAL_AD"
+      ? "social-ads"
       : assetType === "VIDEO"
       ? "videos"
       : assetType === "CAMPAIGN"
@@ -61,6 +63,8 @@ export const POST = withV1Handler(async (request: NextRequest) => {
     next:
       purpose === "thumbnail"
         ? "PUT the image to uploadUrl, then pass fileUrl as `thumbnailUrl` to POST /api/v1/assets or PATCH /api/v1/assets/{id}."
+        : assetType === "SOCIAL_AD"
+        ? "PUT the file to uploadUrl, then pass fileUrl in `media[].fileUrl` to POST /api/v1/ads or PATCH /api/v1/ads/{id}."
         : "PUT the file to uploadUrl, then pass fileUrl in `files[].fileUrl` to POST /api/v1/assets or PATCH /api/v1/assets/{id}.",
   })
 })

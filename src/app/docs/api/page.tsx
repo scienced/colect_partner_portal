@@ -372,6 +372,24 @@ curl -X POST https://partnerportal.colect.io/api/v1/assets \
           <Code>brand: null</Code> clears the tag.
         </P>
       </Endpoint>
+      <Endpoint id="endpoint-ads" method="POST" path="/api/v1/ads">
+        <P>
+          LinkedIn ad sets — one per campaign, holding several visuals and copy
+          versions. <Code>GET /api/v1/ads</Code> lists them,{" "}
+          <Code>GET</Code>/<Code>PATCH /api/v1/ads/{"{id}"}</Code> reads
+          or edits one. Upload each visual first with{" "}
+          <Code>assetType: &quot;SOCIAL_AD&quot;</Code>.
+        </P>
+        <ParamTable
+          rows={[
+            { name: "title", type: "string", description: "Required." },
+            { name: "visibility", type: "EVERYONE | EMPLOYEES", description: "Required." },
+            { name: "media", type: "array", description: <>Required. <Code>{"{ fileUrl, fileName? }"}</Code> in carousel order; the first is the cover.</> },
+            { name: "copies", type: "array", description: <><Code>{"{ introText, headline?, description?, ctaLabel?, destinationUrl?, language?, label? }"}</Code></> },
+            { name: "brand / publish / description", type: "", description: "As for assets." },
+          ]}
+        />
+      </Endpoint>
       <P>
         Write-enabled keys can also read drafts: <Code>GET /api/v1/assets?status=draft</Code>{" "}
         (or <Code>all</Code>) and <Code>GET /api/v1/assets/{"{id}"}</Code> for an unpublished asset.

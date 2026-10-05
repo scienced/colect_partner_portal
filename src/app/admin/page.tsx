@@ -7,13 +7,15 @@ import {
   BookOpen,
   Users,
   Star,
+  Megaphone,
 } from "lucide-react"
 import { AdminDashboardClient } from "./AdminDashboardClient"
 import { fetchAdminAssets } from "@/lib/adminAssets"
 
 export default async function AdminDashboardPage() {
-  const [assetCount, docsCount, teamCount, featuredCount] = await Promise.all([
-    prisma.asset.count(),
+  const [assetCount, adCount, docsCount, teamCount, featuredCount] = await Promise.all([
+    prisma.asset.count({ where: { type: { not: "SOCIAL_AD" } } }),
+    prisma.asset.count({ where: { type: "SOCIAL_AD" } }),
     prisma.docsUpdate.count(),
     prisma.teamMember.count(),
     prisma.featuredContent.count(),
@@ -27,6 +29,14 @@ export default async function AdminDashboardPage() {
       href: "/admin/assets",
       color: "text-blue-600",
       bg: "bg-blue-50",
+    },
+    {
+      label: "Ads",
+      count: adCount,
+      icon: Megaphone,
+      href: "/admin/ads",
+      color: "text-sky-600",
+      bg: "bg-sky-50",
     },
     {
       label: "Docs Updates",
@@ -67,7 +77,7 @@ export default async function AdminDashboardPage() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (

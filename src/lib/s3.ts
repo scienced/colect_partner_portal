@@ -27,16 +27,29 @@ if (typeof setInterval !== "undefined") {
   setInterval(cleanupCache, 5 * 60 * 1000)
 }
 
+// Optional S3-compatible endpoint (e.g. a local RustFS/MinIO container at
+// http://localhost:9000) so local development never writes to the real
+// bucket. Unset in production → plain AWS S3 with virtual-hosted URLs.
+const S3_ENDPOINT = process.env.S3_ENDPOINT?.replace(/\/$/, "") || null
+
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "eu-west-1",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
   },
+  ...(S3_ENDPOINT ? { endpoint: S3_ENDPOINT, forcePathStyle: true } : {}),
 })
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || ""
 const AWS_REGION = process.env.AWS_REGION || "eu-west-1"
+
+/** Canonical (unsigned) URL for a key in our bucket. */
+export function bucketUrlForKey(key: string): string {
+  return S3_ENDPOINT
+    ? `${S3_ENDPOINT}/${BUCKET_NAME}/${key}`
+    : `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+}
 
 export interface PresignedUploadUrl {
   uploadUrl: string
@@ -64,7 +77,7 @@ export async function getPresignedUploadUrl(
   })
 
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
-  const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || "eu-west-1"}.amazonaws.com/${key}`
+  const fileUrl = bucketUrlForKey(key)
 
   return {
     uploadUrl,
@@ -116,6 +129,8 @@ export async function deleteFile(key: string): Promise<void> {
  * Extract the S3 key from a full S3 URL
  */
 export function getKeyFromUrl(url: string): string | null {
+  const ours = ourBucketKeyFromUrl(url)
+  if (ours) return ours
   try {
     const urlObj = new URL(url)
     // Remove leading slash from pathname
@@ -130,6 +145,7 @@ export function getKeyFromUrl(url: string): string | null {
  */
 export function isS3Url(url: string | null | undefined): boolean {
   if (!url) return false
+  if (ourBucketKeyFromUrl(url)) return true
   return url.includes(".s3.") && url.includes("amazonaws.com")
 }
 
@@ -182,7 +198,7 @@ export async function uploadThumbnail(buffer: Buffer, filename: string): Promise
 
   await s3Client.send(command)
 
-  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+  return bucketUrlForKey(key)
 }
 
 /**
@@ -202,7 +218,7 @@ export async function uploadBuffer(
 
   await s3Client.send(command)
 
-  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+  return bucketUrlForKey(key)
 }
 
 /**
@@ -210,7 +226,7 @@ export async function uploadBuffer(
  * Used for Screenshotbase API to access the file for screenshotting
  */
 export function getCampaignPublicUrl(key: string): string {
-  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+  return bucketUrlForKey(key)
 }
 
 /**
@@ -221,6 +237,12 @@ export function getCampaignPublicUrl(key: string): string {
  */
 export function ourBucketKeyFromUrl(url: string): string | null {
   if (!BUCKET_NAME) return null
+  if (S3_ENDPOINT) {
+    const prefix = `${S3_ENDPOINT}/${BUCKET_NAME}/`
+    if (!url.startsWith(prefix)) return null
+    const key = decodeURIComponent(url.slice(prefix.length).split("?")[0])
+    return key || null
+  }
   try {
     const u = new URL(url)
     if (u.protocol !== "https:") return null
@@ -236,11 +258,6 @@ export function ourBucketKeyFromUrl(url: string): string | null {
   } catch {
     return null
   }
-}
-
-/** Canonical (unsigned) URL for a key in our bucket. */
-export function bucketUrlForKey(key: string): string {
-  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
 }
 
 /** Size + type of an object, or null if it doesn't exist. */

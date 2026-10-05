@@ -14,6 +14,7 @@ enum AssetType {
   CAMPAIGN
   ASSET
   VIDEO
+  SOCIAL_AD // an ad set: many visuals (AssetMedia) + copy versions (AdCopy)
 }
 
 // Who can see an asset. EVERYONE = partners + employees; EMPLOYEES = Colect
@@ -177,6 +178,9 @@ model Asset {
   visibility AssetVisibility @default(EVERYONE)
   brand      ContentBrand?
 
+  // Social ad sets (type SOCIAL_AD) only
+  adPlatform String? // "LINKEDIN" for now
+
   // Campaign-specific fields
   campaignGoal    String?
   campaignLink    String?
@@ -196,6 +200,8 @@ model Asset {
 
   // Relations
   variants   AssetVariant[]
+  media      AssetMedia[]
+  adCopies   AdCopy[]
   changelogs Changelog[]
   featuredIn FeaturedContent[]
 
@@ -224,6 +230,40 @@ model AssetVariant {
   @@unique([assetId, language])
   @@index([assetId])
   @@index([language])
+}
+
+// One visual of a social ad set, in display order (also the carousel order).
+model AssetMedia {
+  id           String   @id @default(uuid())
+  assetId      String
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  fileName     String?
+  fileType     String?
+  fileSize     Int?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([assetId])
+}
+
+// One copy version of a social ad set (primary text, headline, CTA…).
+model AdCopy {
+  id             String   @id @default(uuid())
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  language       String? // "EN", "FR", "DE", "NL" — optional
+  label          String? // e.g. "Version A", "Retargeting"
+  introText      String // LinkedIn "introductory text"
+  headline       String?
+  description    String?
+  ctaLabel       String? // e.g. "Learn more", "Request demo"
+  destinationUrl String?
+  displayOrder   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([assetId])
 }
 
 // Documentation updates

@@ -29,10 +29,11 @@ interface PortalLayoutClientProps {
     email: string
     role: string
   } | null
+  isEmployee?: boolean
   children: React.ReactNode
 }
 
-export function PortalLayoutClient({ user, children }: PortalLayoutClientProps) {
+export function PortalLayoutClient({ user, isEmployee = false, children }: PortalLayoutClientProps) {
   const isAdmin = user?.role === "ADMIN"
   const [selectedAsset, setSelectedAsset] = useState<AssetInfo | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -50,7 +51,7 @@ export function PortalLayoutClient({ user, children }: PortalLayoutClientProps) 
     <SuperTokensProvider>
       <AnalyticsTracker />
       <div className="min-h-screen bg-gray-50 flex">
-        <PortalSidebarV2 user={user} isAdmin={isAdmin} onAssetClick={handleAssetClick} />
+        <PortalSidebarV2 user={user} isAdmin={isAdmin} isEmployee={isEmployee} onAssetClick={handleAssetClick} />
         <main className="flex-1 overflow-auto p-6">
           {children}
         </main>

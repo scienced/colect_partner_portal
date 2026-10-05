@@ -1,3 +1,11 @@
+// Local S3-compatible storage (S3_ENDPOINT, e.g. http://localhost:9000) —
+// allow next/image to load from it in development.
+const localStoragePattern = (() => {
+  if (!process.env.S3_ENDPOINT) return []
+  const u = new URL(process.env.S3_ENDPOINT)
+  return [{ protocol: u.protocol.replace(":", ""), hostname: u.hostname, port: u.port }]
+})()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -45,6 +53,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'i.imgur.com',
       },
+      ...localStoragePattern,
     ],
     // Modern image formats for better compression
     formats: ['image/avif', 'image/webp'],

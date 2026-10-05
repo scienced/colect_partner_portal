@@ -24,6 +24,7 @@
     "@prisma/client": "^5.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "jszip": "^3.10.2",
     "lucide-react": "^0.300.0",
     "next": "^14.2.0",
     "postmark": "^3.0.0",

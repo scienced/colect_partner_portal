@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Calendar, Sparkles } from "lucide-react"
+import { ChevronLeft, ChevronRight, Play, FileText, Mail, ExternalLink, Download, BookOpen, Plus, RefreshCw, Calendar, Sparkles, Megaphone } from "lucide-react"
 import { cn, getDateStatus } from "@/lib/utils"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
@@ -21,7 +21,7 @@ export interface ContentItem {
   fileUrl?: string | null
   externalLink?: string | null
   meta?: string
-  category?: "deck" | "video" | "campaign" | "asset" | "docs"
+  category?: "deck" | "video" | "campaign" | "asset" | "docs" | "ad"
   status?: "new" | "updated"
   availableLanguages?: string[]
   persona?: string[]
@@ -62,6 +62,7 @@ const categoryColors: Record<string, string> = {
   campaign: "from-purple-500 to-purple-700",
   asset: "from-teal-500 to-teal-700",
   docs: "from-amber-500 to-amber-700",
+  ad: "from-sky-500 to-sky-700",
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -70,6 +71,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   campaign: <Mail className="w-8 h-8 text-white/70" />,
   asset: <ExternalLink className="w-8 h-8 text-white/70" />,
   docs: <BookOpen className="w-8 h-8 text-white/70" />,
+  ad: <Megaphone className="w-8 h-8 text-white/70" />,
 }
 
 // Helper functions for quick action labels
