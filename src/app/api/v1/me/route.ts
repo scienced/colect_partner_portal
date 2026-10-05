@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
+import { requireApiKey, isAuthResponse, SCOPE_WRITE } from "@/lib/v1Auth"
 import { ok, withV1Handler } from "@/lib/v1Response"
 import { maskKeyForDisplay } from "@/lib/apiKeys"
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 export const GET = withV1Handler(async (request: NextRequest) => {
   const auth = await requireApiKey(request)
   if (isAuthResponse(auth)) return auth
-  const { user, apiKey, source } = auth
+  const { user, apiKey, viewer, source } = auth
 
   return ok({
     user: {
@@ -17,7 +17,12 @@ export const GET = withV1Handler(async (request: NextRequest) => {
       name: user.name,
       role: user.role,
       domain: apiKey.domain,
+      // "employee" = Colect / Le New Black staff (sees employee-only content
+      // and the internal brand tag); "partner" = everyone else.
+      audience: viewer.isEmployee ? "employee" : "partner",
     },
+    // True when this key can call the create/edit content endpoints.
+    canWriteContent: apiKey.scopes.includes(SCOPE_WRITE) && user.role === "ADMIN",
     apiKey: {
       id: apiKey.id,
       label: apiKey.label,

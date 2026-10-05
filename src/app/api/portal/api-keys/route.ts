@@ -3,6 +3,7 @@ import { z } from "zod"
 import { requireSession } from "@/lib/supertokens/session"
 import { prisma } from "@/lib/prisma"
 import { issueKey, maskKeyForDisplay, DEFAULT_KEY_TTL_DAYS, MAX_ACTIVE_KEYS_PER_USER } from "@/lib/apiKeys"
+import { SCOPE_READ, SCOPE_WRITE } from "@/lib/v1Auth"
 
 export const dynamic = "force-dynamic"
 
@@ -58,6 +59,8 @@ export async function GET() {
         maxActiveKeysPerUser: MAX_ACTIVE_KEYS_PER_USER,
         defaultTtlDays: DEFAULT_KEY_TTL_DAYS,
       },
+      // Content write access mirrors the UI: only admins can add/edit content.
+      canCreateWriteKeys: session.user.role === "ADMIN",
     },
     { headers: NO_CACHE }
   )
@@ -67,6 +70,8 @@ export async function GET() {
 const createSchema = z.object({
   label: z.string().min(1).max(80),
   ttlDays: z.union([z.number().int().min(1).max(365), z.null()]).optional(),
+  // Lets agents create/edit content via /api/v1. Admins only.
+  allowWrite: z.boolean().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -89,12 +94,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing domain" }, { status: 400, headers: NO_CACHE })
   }
 
+  if (parsed.data.allowWrite && session.user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Only admins can create keys with content write access." },
+      { status: 403, headers: NO_CACHE }
+    )
+  }
+
   try {
     const { plaintext, record } = await issueKey({
       userId: session.user.id,
       userDomain: domain,
       label: parsed.data.label,
       ttlDays: parsed.data.ttlDays ?? undefined,
+      scopes: parsed.data.allowWrite ? [SCOPE_READ, SCOPE_WRITE] : [SCOPE_READ],
     })
 
     return NextResponse.json(

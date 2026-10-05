@@ -41,7 +41,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
 
   // Same-origin URLs in results so agents can render clickable portal links.
   const origin = getCanonicalOrigin(request)
-  const items = await searchPortal({ query: q, types, limitPerType: limit, origin })
+  const items = await searchPortal({ query: q, types, limitPerType: limit, origin, viewer: auth.viewer })
 
   return ok({ query: q, items, total: items.length })
 })

@@ -4,6 +4,7 @@ import Session from "supertokens-node/recipe/session"
 import { prisma } from "@/lib/prisma"
 import { initSupertokens } from "./backend"
 import { UserRole } from "@prisma/client"
+import { getViewer, PARTNER_VIEWER, type Viewer } from "@/lib/access"
 
 // Initialize SuperTokens
 initSupertokens()
@@ -81,6 +82,18 @@ export async function requireAdmin(): Promise<SessionData> {
   }
 
   return session
+}
+
+/**
+ * Resolve the logged-in user's content audience (employee vs partner).
+ * Returns null when there's no session. A session whose user row is missing
+ * gets the partner-safe audience rather than an error.
+ */
+export async function getSessionViewer(): Promise<{ session: SessionData; viewer: Viewer } | null> {
+  const session = await getServerSession()
+  if (!session) return null
+  const viewer = session.user ? await getViewer(session.user) : PARTNER_VIEWER
+  return { session, viewer }
 }
 
 /**

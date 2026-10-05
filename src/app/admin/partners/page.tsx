@@ -1,13 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { AllowedDomain } from "@prisma/client"
+import type { AllowedDomain, Organization } from "@prisma/client"
 import { PageHeader, StatusBadge } from "@/components/layout/SectionHeader"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
-import { Input, Textarea } from "@/components/ui/Input"
+import { Input, Textarea, Select } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { Plus, Edit2, Trash2, Globe, Building2 } from "lucide-react"
+
+const ORGANIZATION_LABELS: Record<Organization, string> = {
+  PARTNER: "Partner",
+  COLECT: "Colect",
+  LE_NEW_BLACK: "Le New Black",
+}
 
 export default function PartnersPage() {
   const [domains, setDomains] = useState<AllowedDomain[]>([])
@@ -19,6 +25,7 @@ export default function PartnersPage() {
     companyName: "",
     notes: "",
     isActive: true,
+    organization: "PARTNER" as Organization,
   })
   const [saving, setSaving] = useState(false)
 
@@ -42,7 +49,7 @@ export default function PartnersPage() {
 
   const openAddModal = () => {
     setEditingDomain(null)
-    setFormData({ domain: "", companyName: "", notes: "", isActive: true })
+    setFormData({ domain: "", companyName: "", notes: "", isActive: true, organization: "PARTNER" })
     setModalOpen(true)
   }
 
@@ -53,6 +60,7 @@ export default function PartnersPage() {
       companyName: domain.companyName || "",
       notes: domain.notes || "",
       isActive: domain.isActive,
+      organization: domain.organization,
     })
     setModalOpen(true)
   }
@@ -135,6 +143,11 @@ export default function PartnersPage() {
           <strong>How it works:</strong> Only users with email addresses from approved domains can sign in.
           When someone tries to log in with an unauthorized domain, they&apos;ll see an error message.
         </p>
+        <p className="text-sm text-blue-800 mt-2">
+          <strong>Organisation:</strong> domains marked <em>Colect</em> or <em>Le New Black</em> are
+          employees. They also see content set to &ldquo;Employees only&rdquo; and the internal
+          Colect / Le New Black tag. Partner domains never see either.
+        </p>
       </Card>
 
       {loading ? (
@@ -164,6 +177,11 @@ export default function PartnersPage() {
                       <StatusBadge status={domain.isActive ? "success" : "neutral"}>
                         {domain.isActive ? "Active" : "Inactive"}
                       </StatusBadge>
+                      {domain.organization !== "PARTNER" && (
+                        <StatusBadge status="info">
+                          {ORGANIZATION_LABELS[domain.organization]} · employees
+                        </StatusBadge>
+                      )}
                     </div>
                     {domain.companyName && (
                       <p className="text-sm text-gray-600">{domain.companyName}</p>
@@ -227,6 +245,17 @@ export default function PartnersPage() {
             helperText="Enter the domain without @ (e.g., partner-company.com)"
             required
           />
+          <Select
+            label="Organisation"
+            value={formData.organization}
+            onChange={(e) =>
+              setFormData({ ...formData, organization: e.target.value as Organization })
+            }
+          >
+            <option value="PARTNER">Partner (sees content for everyone)</option>
+            <option value="COLECT">Colect (employee)</option>
+            <option value="LE_NEW_BLACK">Le New Black (employee)</option>
+          </Select>
           <Input
             label="Company Name"
             value={formData.companyName}

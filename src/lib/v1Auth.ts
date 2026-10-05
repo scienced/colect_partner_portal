@@ -2,14 +2,22 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { findActiveKeyByPlaintext, parseAuthorizationHeader } from "./apiKeys"
 import { httpErrors } from "./v1Response"
-import type { ApiKey, AnalyticsEventType, User } from "@prisma/client"
+import { getViewer, type Viewer } from "./access"
+import { UserRole, type ApiKey, type AnalyticsEventType, type User } from "@prisma/client"
 
 export interface V1Auth {
   user: User
   apiKey: ApiKey
+  /** The key owner's content audience — same rules as their portal login. */
+  viewer: Viewer
   /** "MCP_QUERY" when the request came from our MCP server, else "API_QUERY". */
   source: AnalyticsEventType
 }
+
+/** Scope granted to every key. */
+export const SCOPE_READ = "read:portal"
+/** Scope that allows creating/editing content. Only admins can hold it. */
+export const SCOPE_WRITE = "write:content"
 
 /**
  * Per-key in-process rate limit. Generous on purpose — the goal is to stop a
@@ -46,7 +54,7 @@ function detectSource(request: NextRequest): AnalyticsEventType {
  */
 export async function requireApiKey(
   request: NextRequest,
-  meta?: { query?: string }
+  meta?: { query?: string; scope?: typeof SCOPE_WRITE }
 ): Promise<V1Auth | Response> {
   const plaintext = parseAuthorizationHeader(request.headers.get("authorization"))
   if (!plaintext) {
@@ -62,6 +70,19 @@ export async function requireApiKey(
 
   const user = await prisma.user.findUnique({ where: { id: apiKey.userId } })
   if (!user) return httpErrors.unauthorized("API key's owning user no longer exists.")
+
+  // Write calls need the scope on the key AND a still-admin owner: demoting a
+  // user immediately disables writes from every key they minted.
+  if (meta?.scope === SCOPE_WRITE) {
+    if (!apiKey.scopes.includes(SCOPE_WRITE)) {
+      return httpErrors.forbidden(
+        "This API key is read-only. An admin can create a key with content write access at /settings/api-keys."
+      )
+    }
+    if (user.role !== UserRole.ADMIN) {
+      return httpErrors.forbidden("Only admins can create or edit content.")
+    }
+  }
 
   const source = detectSource(request)
   const ip =
@@ -88,7 +109,7 @@ export async function requireApiKey(
     }),
   ]).catch((e) => console.error("[v1-auth] background audit failed:", e))
 
-  return { user, apiKey, source }
+  return { user, apiKey, viewer: await getViewer(user), source }
 }
 
 export function isAuthResponse(x: V1Auth | Response): x is Response {

@@ -56,6 +56,8 @@ export async function issueKey(opts: {
   userDomain: string
   label: string
   ttlDays?: number | null // null = no expiry; undefined = use default
+  /** Defaults to read-only. Callers must check the user may hold each scope. */
+  scopes?: string[]
 }): Promise<IssuedKey> {
   const now = new Date()
   const activeCount = await prisma.apiKey.count({
@@ -90,7 +92,7 @@ export async function issueKey(opts: {
       label,
       userId: opts.userId,
       domain: opts.userDomain,
-      scopes: ["read:portal"],
+      scopes: opts.scopes ?? ["read:portal"],
       expiresAt,
     },
   })

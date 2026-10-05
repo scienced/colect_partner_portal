@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
@@ -210,4 +211,55 @@ export async function uploadBuffer(
  */
 export function getCampaignPublicUrl(key: string): string {
   return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+}
+
+/**
+ * If `url` points at an object in OUR bucket, return its key; otherwise null.
+ * Accepts virtual-hosted (`bucket.s3.region.amazonaws.com/key`) and
+ * path-style (`s3.region.amazonaws.com/bucket/key`) URLs, with or without a
+ * presign query string. Used to validate URLs an API client hands back to us.
+ */
+export function ourBucketKeyFromUrl(url: string): string | null {
+  if (!BUCKET_NAME) return null
+  try {
+    const u = new URL(url)
+    if (u.protocol !== "https:") return null
+    const virtualHosts = [`${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com`, `${BUCKET_NAME}.s3.amazonaws.com`]
+    const pathHosts = [`s3.${AWS_REGION}.amazonaws.com`, "s3.amazonaws.com"]
+    const path = decodeURIComponent(u.pathname.replace(/^\//, ""))
+    if (virtualHosts.includes(u.hostname)) return path || null
+    if (pathHosts.includes(u.hostname)) {
+      const [bucket, ...rest] = path.split("/")
+      return bucket === BUCKET_NAME && rest.length ? rest.join("/") : null
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Canonical (unsigned) URL for a key in our bucket. */
+export function bucketUrlForKey(key: string): string {
+  return `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`
+}
+
+/** Size + type of an object, or null if it doesn't exist. */
+export async function headObject(
+  key: string
+): Promise<{ contentLength: number | null; contentType: string | null } | null> {
+  try {
+    const res = await s3Client.send(new HeadObjectCommand({ Bucket: BUCKET_NAME, Key: key }))
+    return { contentLength: res.ContentLength ?? null, contentType: res.ContentType ?? null }
+  } catch (e) {
+    const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    if (status === 404 || status === 403) return null
+    throw e
+  }
+}
+
+/** Download an object into memory. Only for small files (thumbnails). */
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const res = await s3Client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }))
+  if (!res.Body) throw new Error(`Empty S3 object: ${key}`)
+  return Buffer.from(await res.Body.transformToByteArray())
 }

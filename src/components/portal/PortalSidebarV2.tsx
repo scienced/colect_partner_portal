@@ -144,6 +144,8 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
         sentAt: result.sentAt ?? null,
         createdAt: result.createdAt ?? new Date().toISOString(),
         updatedAt: result.updatedAt ?? new Date().toISOString(),
+        visibility: result.visibility,
+        brand: result.brand,
       })
       return
     }

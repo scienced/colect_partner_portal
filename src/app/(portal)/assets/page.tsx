@@ -12,6 +12,7 @@ import { useGeneralAssets } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 import type { AssetInfo } from "@/types"
 
 export default function AssetsPage() {
@@ -51,6 +52,8 @@ export default function AssetsPage() {
     persona: asset.persona,
     createdAt: asset.createdAt,
     updatedAt: asset.updatedAt,
+    visibility: asset.visibility,
+    brand: asset.brand,
   }), [])
 
   const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
@@ -117,6 +120,7 @@ export default function AssetsPage() {
                     <FolderOpen className="w-12 h-12 text-white/70" />
                   </div>
                 )}
+                <AudienceBadges visibility={asset.visibility} brand={asset.brand} className="mb-1" />
                 <h3 className="font-medium text-gray-900">{asset.title}</h3>
                 {asset.description && (
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">

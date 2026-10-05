@@ -13,6 +13,7 @@ import { useVideos } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 import { getYouTubeId, getYouTubeThumbnail } from "@/lib/utils"
 import type { AssetInfo } from "@/types"
 
@@ -51,6 +52,8 @@ export default function VideosPage() {
     persona: video.persona,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
+    visibility: video.visibility,
+    brand: video.brand,
   }), [])
 
   const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
@@ -140,6 +143,7 @@ export default function VideosPage() {
                   )}
                 </div>
                 <div className="p-4">
+                  <AudienceBadges visibility={video.visibility} brand={video.brand} className="mb-1" />
                   <h3 className="font-medium text-gray-900 line-clamp-1">{video.title}</h3>
                   {video.description && (
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">

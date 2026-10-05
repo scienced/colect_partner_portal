@@ -3,6 +3,7 @@ import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
 import { ok, httpErrors, withV1Handler, getCanonicalOrigin } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
 import { assetPortalUrl } from "@/lib/portalUrls"
+import { assetAccessWhere } from "@/lib/access"
 
 export const dynamic = "force-dynamic"
 
@@ -73,7 +74,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     tasks.push(
       prisma.asset
         .findMany({
-          where: { publishedAt: { not: null }, updatedAt: updatedAtFilter },
+          where: { publishedAt: { not: null }, updatedAt: updatedAtFilter, ...assetAccessWhere(auth.viewer) },
           orderBy: { updatedAt: "desc" },
           take: perType,
           select: { id: true, type: true, title: true, updatedAt: true },

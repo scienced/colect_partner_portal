@@ -5,6 +5,7 @@ import {
   type AssetDownloadInfo,
 } from "@/lib/portalUrls"
 import { getPresignedUrls } from "@/lib/s3"
+import type { Viewer } from "@/lib/access"
 
 /**
  * Postgres full-text search across the portal's content tables.
@@ -60,6 +61,8 @@ export interface SearchOpts {
   types?: SearchResultType[]
   limitPerType?: number
   origin: string
+  /** Whose search this is — decides whether employee-only assets match. */
+  viewer: Viewer
 }
 
 const DEFAULT_LIMIT_PER_TYPE = 5
@@ -76,13 +79,14 @@ export async function searchPortal(opts: SearchOpts): Promise<SearchResult[]> {
   )
   const limit = opts.limitPerType ?? DEFAULT_LIMIT_PER_TYPE
   const origin = opts.origin
+  const viewer = opts.viewer
 
   const tasks: Promise<SearchResult[]>[] = []
-  if (types.has("asset")) tasks.push(searchAssets(q, limit, origin))
+  if (types.has("asset")) tasks.push(searchAssets(q, limit, origin, viewer))
   if (types.has("docs_update")) tasks.push(searchDocs(q, limit, origin))
   if (types.has("product_update")) tasks.push(searchProductUpdates(q, limit, origin))
   if (types.has("team_member")) tasks.push(searchTeam(q, limit, origin))
-  if (types.has("featured")) tasks.push(searchFeatured(q, limit, origin))
+  if (types.has("featured")) tasks.push(searchFeatured(q, limit, origin, viewer))
 
   const batches = await Promise.all(tasks)
   const all = batches.flat()
@@ -97,11 +101,15 @@ export async function searchPortal(opts: SearchOpts): Promise<SearchResult[]> {
 // fragment around the match.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function searchAssets(q: string, limit: number, origin: string): Promise<SearchResult[]> {
+async function searchAssets(q: string, limit: number, origin: string, viewer: Viewer): Promise<SearchResult[]> {
   const rows = await prisma.$queryRaw<
-    { id: string; title: string; description: string | null; type: string; updatedAt: Date; rank: number; headline: string | null }[]
+    {
+      id: string; title: string; description: string | null; type: string; updatedAt: Date;
+      rank: number; headline: string | null; visibility: string; brand: string | null
+    }[]
   >`
     SELECT id, title, description, "type"::text AS type, "updatedAt",
+      "visibility"::text AS visibility, "brand"::text AS brand,
       ts_rank_cd(
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(description,'')), 'B'),
@@ -110,6 +118,7 @@ async function searchAssets(q: string, limit: number, origin: string): Promise<S
       ts_headline('english', coalesce(description, title), plainto_tsquery('english', ${q}), ${HEADLINE_OPTS}) AS headline
     FROM "Asset"
     WHERE "publishedAt" IS NOT NULL
+      AND (${viewer.isEmployee} OR "visibility" = 'EVERYONE')
       AND (
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(description,'')), 'B')
@@ -133,7 +142,11 @@ async function searchAssets(q: string, limit: number, origin: string): Promise<S
     url: assetPortalUrl(origin, r.type, r.id),
     updatedAt: r.updatedAt.toISOString(),
     rank: Number(r.rank),
-    meta: { assetType: r.type },
+    meta: {
+      assetType: r.type,
+      // Internal tagging — employees only (same rule as access.internalAssetFields).
+      ...(viewer.isEmployee ? { visibility: r.visibility, brand: r.brand } : {}),
+    },
     download: downloads.get(r.id) ?? null,
   }))
 }
@@ -287,7 +300,7 @@ async function searchTeam(q: string, limit: number, origin: string): Promise<Sea
   }))
 }
 
-async function searchFeatured(q: string, limit: number, origin: string): Promise<SearchResult[]> {
+async function searchFeatured(q: string, limit: number, origin: string, viewer: Viewer): Promise<SearchResult[]> {
   const rows = await prisma.$queryRaw<
     {
       id: string; title: string; description: string | null;
@@ -304,6 +317,15 @@ async function searchFeatured(q: string, limit: number, origin: string): Promise
     FROM "FeaturedContent"
     WHERE ("endDate" IS NULL OR "endDate" > NOW())
       AND "startDate" <= NOW()
+      -- Hide featured items that point at an asset this viewer can't see.
+      AND (
+        "assetId" IS NULL
+        OR ${viewer.isEmployee}
+        OR EXISTS (
+          SELECT 1 FROM "Asset" a
+          WHERE a.id = "FeaturedContent"."assetId" AND a."visibility" = 'EVERYONE'
+        )
+      )
       AND (
         setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
         setweight(to_tsvector('english', coalesce(description,'')), 'B')

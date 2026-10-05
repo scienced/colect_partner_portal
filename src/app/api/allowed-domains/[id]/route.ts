@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/supertokens/session"
+import { clearOrganizationCache } from "@/lib/access"
 
 const updateSchema = z.object({
   domain: z.string().min(1).transform((d) => d.toLowerCase().trim()).optional(),
   companyName: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  organization: z.enum(["PARTNER", "COLECT", "LE_NEW_BLACK"]).optional(),
 })
 
 export async function PUT(
@@ -29,6 +31,8 @@ export async function PUT(
       where: { id },
       data,
     })
+    // Organisation decides employee vs partner access — apply immediately.
+    clearOrganizationCache()
 
     return NextResponse.json(domain)
   } catch (error) {
@@ -71,6 +75,7 @@ export async function DELETE(
     await prisma.allowedDomain.delete({
       where: { id },
     })
+    clearOrganizationCache()
 
     return NextResponse.json({ success: true })
   } catch (error) {

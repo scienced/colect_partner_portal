@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "@/lib/supertokens/session"
+import { requireAdmin } from "@/lib/supertokens/session"
 import { getPresignedDownloadUrl } from "@/lib/s3"
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || ""
@@ -18,8 +18,12 @@ function getAllowedS3Hostnames(): string[] {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    // Admin only. This signs ANY key in the bucket, so it can't be open to
+    // partners once employee-only files exist. Portal downloads go through
+    // the asset routes, which check visibility per asset.
+    try {
+      await requireAdmin()
+    } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

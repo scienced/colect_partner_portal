@@ -37,6 +37,7 @@ interface KeyRow {
 interface KeysResponse {
   items: KeyRow[]
   limits: { maxActiveKeysPerUser: number; defaultTtlDays: number }
+  canCreateWriteKeys?: boolean
 }
 
 export default function ApiKeysPage() {
@@ -161,6 +162,7 @@ export default function ApiKeysPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         defaultTtlDays={data?.limits.defaultTtlDays ?? 90}
+        canCreateWriteKeys={!!data?.canCreateWriteKeys}
         onCreated={(plaintext) => {
           setCreateOpen(false)
           setNewKeyPlaintext(plaintext)
@@ -220,6 +222,11 @@ function KeyRowCard({ k, onRevoke }: { k: KeyRow; onRevoke: () => void }) {
               </span>
             )}
             <StatusBadge status={k.status} />
+            {k.scopes.includes("write:content") && (
+              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
+                Read &amp; write
+              </span>
+            )}
           </div>
           <div className="mt-1 font-mono text-sm text-gray-500">{k.display}</div>
           <div className="mt-2 text-sm text-gray-500 space-y-0.5">
@@ -262,14 +269,17 @@ function CreateKeyModal({
   open,
   onClose,
   defaultTtlDays,
+  canCreateWriteKeys,
   onCreated,
 }: {
   open: boolean
   onClose: () => void
   defaultTtlDays: number
+  canCreateWriteKeys: boolean
   onCreated: (plaintext: string) => void
 }) {
   const [label, setLabel] = useState("")
+  const [allowWrite, setAllowWrite] = useState(false)
   const [ttl, setTtl] = useState<string>(String(defaultTtlDays))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -284,7 +294,7 @@ function CreateKeyModal({
       const res = await fetch("/api/portal/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, ttlDays }),
+        body: JSON.stringify({ label, ttlDays, allowWrite: canCreateWriteKeys && allowWrite }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -294,6 +304,7 @@ function CreateKeyModal({
       onCreated(json.plaintext)
       setLabel("")
       setTtl(String(defaultTtlDays))
+      setAllowWrite(false)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Network error")
     } finally {
@@ -351,6 +362,24 @@ function CreateKeyModal({
             Shorter is safer. You can always create a new one.
           </p>
         </div>
+        {canCreateWriteKeys && (
+          <label className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <input
+              type="checkbox"
+              checked={allowWrite}
+              onChange={(e) => setAllowWrite(e.target.checked)}
+              disabled={submitting}
+              className="mt-0.5 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm text-amber-900">
+              <span className="font-medium">Allow creating and editing content</span>
+              <span className="block text-xs mt-0.5">
+                Lets an agent upload files and create or edit assets, including who can see them.
+                It can&apos;t delete anything. Only admins can create these keys.
+              </span>
+            </span>
+          </label>
+        )}
         {error && (
           <p className="text-sm text-red-600 flex items-start gap-1">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />

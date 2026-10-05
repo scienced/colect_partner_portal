@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import type { Asset, AssetVariant, AssetType } from "@prisma/client"
+import type { Asset, AssetVariant, AssetType, AssetVisibility, ContentBrand } from "@prisma/client"
 import { Button } from "@/components/ui/Button"
 import { Input, Textarea, Select, Checkbox } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { FileUploader } from "@/components/admin/FileUploader"
-import { Wand2, Pin, Link2, Upload, Plus, X, Globe } from "lucide-react"
+import { Wand2, Pin, Link2, Upload, Plus, X, Globe, Users, Lock } from "lucide-react"
 import { endOfWeek, endOfMonth, addDays, format } from "date-fns"
 import {
   canonicalLanguage,
@@ -81,6 +81,8 @@ export function AssetForm({
     thumbnailUrl: initialData?.thumbnailUrl || "",
     blurDataUrl: initialData?.blurDataUrl || "",
     persona: initialData?.persona || [],
+    visibility: (initialData?.visibility || "EVERYONE") as AssetVisibility,
+    brand: (initialData?.brand ?? "") as ContentBrand | "",
     campaignGoal: initialData?.campaignGoal || "",
     campaignLink: initialData?.campaignLink || "",
     publishedAt: initialData?.publishedAt
@@ -123,6 +125,8 @@ export function AssetForm({
         thumbnailUrl: initialData?.thumbnailUrl || "",
         blurDataUrl: initialData?.blurDataUrl || "",
         persona: initialData?.persona || [],
+        visibility: (initialData?.visibility || "EVERYONE") as AssetVisibility,
+        brand: (initialData?.brand ?? "") as ContentBrand | "",
         campaignGoal: initialData?.campaignGoal || "",
         campaignLink: initialData?.campaignLink || "",
         publishedAt: initialData?.publishedAt
@@ -248,6 +252,8 @@ export function AssetForm({
         thumbnailUrl: formData.thumbnailUrl || undefined,
         blurDataUrl: formData.blurDataUrl || undefined,
         persona: formData.persona,
+        visibility: formData.visibility,
+        brand: formData.brand || null,
         campaignGoal: formData.campaignGoal || undefined,
         campaignLink: formData.campaignLink || undefined,
         publishedAt: formData.publishedAt,
@@ -660,10 +666,68 @@ export function AssetForm({
           </>
         )}
 
+        {/* Audience */}
+        <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
+          <label className="block text-sm font-medium text-gray-700">Who can see this?</label>
+          <div className="flex gap-2">
+            {([
+              {
+                value: "EVERYONE",
+                icon: Users,
+                label: "Everyone",
+                hint: "Partners, Colect and Le New Black",
+              },
+              {
+                value: "EMPLOYEES",
+                icon: Lock,
+                label: "Employees only",
+                hint: "Colect and Le New Black staff",
+              },
+            ] as const).map(({ value, icon: Icon, label, hint }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFormData({ ...formData, visibility: value })}
+                className={`flex-1 flex items-start gap-2 px-4 py-3 rounded-lg border-2 transition-colors text-left ${
+                  formData.visibility === value
+                    ? "border-primary bg-primary/5"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <Icon
+                  className={`w-4 h-4 mt-0.5 ${formData.visibility === value ? "text-primary" : "text-gray-400"}`}
+                />
+                <span>
+                  <span
+                    className={`block text-sm font-medium ${formData.visibility === value ? "text-primary" : "text-gray-700"}`}
+                  >
+                    {label}
+                  </span>
+                  <span className="block text-xs text-gray-500">{hint}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <Select
+            label="For Colect or Le New Black? (optional)"
+            value={formData.brand}
+            onChange={(e) =>
+              setFormData({ ...formData, brand: e.target.value as ContentBrand | "" })
+            }
+            helperText="Internal tag. Only Colect and Le New Black staff see it, never partners."
+          >
+            <option value="">Not set</option>
+            <option value="COLECT">Colect</option>
+            <option value="LE_NEW_BLACK">Le New Black</option>
+            <option value="BOTH">Both</option>
+          </Select>
+        </div>
+
         {/* Publish */}
         <Checkbox
           label="Publish immediately"
-          description="Make this asset visible to partners"
+          description="Make this asset visible in the portal"
           checked={!!formData.publishedAt}
           onChange={(e) =>
             setFormData({

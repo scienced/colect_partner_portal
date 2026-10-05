@@ -13,6 +13,7 @@ import { useDecks } from "@/lib/swr"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 import type { AssetInfo } from "@/types"
 
 export default function DecksPage() {
@@ -50,6 +51,8 @@ export default function DecksPage() {
     persona: deck.persona,
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt,
+    visibility: deck.visibility,
+    brand: deck.brand,
   }), [])
 
   const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
@@ -112,6 +115,7 @@ export default function DecksPage() {
                     <FileText className="w-12 h-12 text-gray-300" />
                   </div>
                 )}
+                <AudienceBadges visibility={deck.visibility} brand={deck.brand} className="mb-1" />
                 <h3 className="font-medium text-gray-900">{deck.title}</h3>
                 {deck.description && (
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">

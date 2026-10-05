@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/supertokens/session"
+import { clearOrganizationCache } from "@/lib/access"
 
 const domainSchema = z.object({
   domain: z.string().min(1).transform((d) => d.toLowerCase().trim()),
   companyName: z.string().optional(),
   notes: z.string().optional(),
   isActive: z.boolean().optional(),
+  organization: z.enum(["PARTNER", "COLECT", "LE_NEW_BLACK"]).optional(),
 })
 
 export async function GET() {
@@ -41,8 +43,10 @@ export async function POST(request: NextRequest) {
         companyName: data.companyName,
         notes: data.notes,
         isActive: data.isActive ?? true,
+        organization: data.organization ?? "PARTNER",
       },
     })
+    clearOrganizationCache()
 
     return NextResponse.json(domain, { status: 201 })
   } catch (error) {

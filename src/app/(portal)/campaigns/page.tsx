@@ -11,6 +11,7 @@ import { Mail, ExternalLink, Calendar } from "lucide-react"
 import { useCampaigns } from "@/lib/swr"
 import { cn, getDateStatus } from "@/lib/utils"
 import { PinnedBadge } from "@/components/portal/PinnedBadge"
+import { AudienceBadges } from "@/components/portal/AudienceBadges"
 import { useAnalytics } from "@/hooks/useAnalytics"
 import { useAssetDrawer } from "@/hooks/useAssetDrawer"
 import Image from "next/image"
@@ -53,6 +54,8 @@ export default function CampaignsPage() {
     sentAt: campaign.sentAt,
     createdAt: campaign.createdAt,
     updatedAt: campaign.updatedAt,
+    visibility: campaign.visibility,
+    brand: campaign.brand,
   }), [])
 
   const { selectedAsset, drawerOpen, handleInfoClick, handleDrawerClose } =
@@ -158,6 +161,7 @@ function CampaignCard({
       </div>
 
       <div className="p-4 flex-1 flex flex-col">
+        <AudienceBadges visibility={campaign.visibility} brand={campaign.brand} className="mb-1" />
         <h3 className="font-semibold text-gray-900 line-clamp-1">
           {campaign.title}
         </h3>

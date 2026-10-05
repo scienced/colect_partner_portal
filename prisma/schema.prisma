@@ -16,6 +16,29 @@ enum AssetType {
   VIDEO
 }
 
+// Who can see an asset. EVERYONE = partners + employees; EMPLOYEES = Colect
+// and Le New Black staff only (see AllowedDomain.organization).
+enum AssetVisibility {
+  EVERYONE
+  EMPLOYEES
+}
+
+// Optional internal tag: which company the content is for. Only ever shown to
+// employees — partner-facing responses strip it.
+enum ContentBrand {
+  COLECT
+  LE_NEW_BLACK
+  BOTH
+}
+
+// Which organisation an allowed login domain belongs to. COLECT and
+// LE_NEW_BLACK domains are "employees" and can see EMPLOYEES-only content.
+enum Organization {
+  PARTNER
+  COLECT
+  LE_NEW_BLACK
+}
+
 // Enum for user roles
 enum UserRole {
   PARTNER
@@ -150,6 +173,10 @@ model Asset {
   // upload missing language versions via the admin form tabs.
   availableLanguages String[]
 
+  // Access + internal tagging (see enums above)
+  visibility AssetVisibility @default(EVERYONE)
+  brand      ContentBrand?
+
   // Campaign-specific fields
   campaignGoal    String?
   campaignLink    String?
@@ -177,6 +204,7 @@ model Asset {
   @@index([updatedAt])
   @@index([publishedAt])
   @@index([type, isPinned])
+  @@index([visibility])
 }
 
 // Per-language file/link version of an Asset. One row = one translation.
@@ -331,6 +359,8 @@ model AllowedDomain {
   companyName String?  // e.g., "Partner Company Inc."
   notes       String?
   isActive    Boolean  @default(true)
+  // PARTNER by default; COLECT / LE_NEW_BLACK mark employee domains.
+  organization Organization @default(PARTNER)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
