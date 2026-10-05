@@ -229,7 +229,11 @@ export function FeaturedList({
   const getContentOptions = () => {
     switch (formData.entityType) {
       case "asset":
-        return assets.map((a) => ({ id: a.id, title: a.title, description: a.description }))
+        return assets.map((a) => ({
+          id: a.id,
+          title: a.type === "SOCIAL_AD" ? `${a.title} (Ad set)` : a.title,
+          description: a.description,
+        }))
       case "docs_update":
         return docsUpdates.map((d) => ({ id: d.id, title: d.title, description: d.summary }))
       case "product_update":

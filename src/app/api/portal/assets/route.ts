@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const assets = await prisma.asset.findMany({
       where: {
-        // Ad sets have their own page and endpoint (/api/portal/social-ads).
+        // Ad sets have their own page and endpoint (/api/portal/ads).
         ...(type ? { type: type as AssetType } : { type: { not: "SOCIAL_AD" } }),
         ...(language ? { availableLanguages: { has: canonicalLanguage(language) } } : {}),
         publishedAt: { not: null },

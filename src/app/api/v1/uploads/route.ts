@@ -64,7 +64,7 @@ export const POST = withV1Handler(async (request: NextRequest) => {
       purpose === "thumbnail"
         ? "PUT the image to uploadUrl, then pass fileUrl as `thumbnailUrl` to POST /api/v1/assets or PATCH /api/v1/assets/{id}."
         : assetType === "SOCIAL_AD"
-        ? "PUT the file to uploadUrl, then pass fileUrl in `media[].fileUrl` to POST /api/v1/social-ads or PATCH /api/v1/social-ads/{id}."
+        ? "PUT the file to uploadUrl, then pass fileUrl in `media[].fileUrl` to POST /api/v1/ads or PATCH /api/v1/ads/{id}."
         : "PUT the file to uploadUrl, then pass fileUrl in `files[].fileUrl` to POST /api/v1/assets or PATCH /api/v1/assets/{id}.",
   })
 })

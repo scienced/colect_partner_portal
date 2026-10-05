@@ -25,7 +25,7 @@ export default function McpDocsPage() {
         <Li><Code>portal_list_product_updates</Code> — release notes and upcoming items.</Li>
         <Li><Code>portal_list_who_is_who</Code> — team directory.</Li>
         <Li><Code>portal_list_featured</Code> — currently-active featured items.</Li>
-        <Li><Code>portal_list_social_ads</Code> / <Code>portal_get_social_ad</Code> — LinkedIn ad sets: visuals and copy.</Li>
+        <Li><Code>portal_list_ads</Code> / <Code>portal_get_ad</Code> — LinkedIn ad sets: visuals and copy.</Li>
       </Ul>
       <P>
         Admins with a write-enabled key (see Step 1) also get the write tools to
@@ -35,7 +35,7 @@ export default function McpDocsPage() {
         <Li><Code>portal_create_upload</Code> — get a URL to upload a file or thumbnail to.</Li>
         <Li><Code>portal_create_asset</Code> — create a deck, campaign, video or asset, including who can see it.</Li>
         <Li><Code>portal_update_asset</Code> — edit, publish/unpublish, or change visibility of an asset.</Li>
-        <Li><Code>portal_create_social_ad</Code> / <Code>portal_update_social_ad</Code> — create or edit a LinkedIn ad set (several visuals + copy versions).</Li>
+        <Li><Code>portal_create_ad</Code> / <Code>portal_update_ad</Code> — create or edit a LinkedIn ad set (several visuals + copy versions).</Li>
       </Ul>
 
       <H2 id="step-1">Step 1 — Get an API key</H2>

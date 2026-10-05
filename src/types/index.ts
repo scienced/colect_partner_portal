@@ -71,6 +71,8 @@ export interface Asset {
   // only (see src/lib/access.ts). Partners never receive these keys.
   visibility?: "EVERYONE" | "EMPLOYEES"
   brand?: "COLECT" | "LE_NEW_BLACK" | "BOTH" | null
+  // Ad sets (type SOCIAL_AD) only
+  adPlatform?: string | null
 }
 
 // Docs update — either a manual Prisma row or an auto-fetched GitBook page.

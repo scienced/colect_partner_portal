@@ -30,7 +30,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
 
   const typeParam = searchParams.get("type")?.toUpperCase()
   if (typeParam === "SOCIAL_AD") {
-    return httpErrors.badRequest("Social ad sets have their own endpoint: GET /api/v1/social-ads.")
+    return httpErrors.badRequest("Ad sets have their own endpoint: GET /api/v1/ads.")
   }
   if (typeParam && !ASSET_TYPES.includes(typeParam as AssetType)) {
     return httpErrors.badRequest(

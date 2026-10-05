@@ -10,6 +10,7 @@ import { Button, IconButton } from "@/components/ui/Button"
 import { Input, Textarea, Checkbox } from "@/components/ui/Input"
 import { Modal } from "@/components/ui/Modal"
 import { AssetForm } from "./assets/AssetForm"
+import { AdSetForm } from "./ads/AdSetForm"
 import {
   FileText,
   BookOpen,
@@ -19,6 +20,7 @@ import {
   Play,
   Mail,
   ExternalLink,
+  Megaphone,
 } from "lucide-react"
 
 interface AdminDashboardClientProps {
@@ -30,6 +32,15 @@ const assetTypeIcons: Record<string, React.ReactNode> = {
   VIDEO: <Play className="w-4 h-4 text-red-500" />,
   CAMPAIGN: <Mail className="w-4 h-4 text-purple-500" />,
   ASSET: <ExternalLink className="w-4 h-4 text-teal-500" />,
+  SOCIAL_AD: <Megaphone className="w-4 h-4 text-sky-500" />,
+}
+
+const assetTypeLabels: Record<string, string> = {
+  DECK: "Sales Deck",
+  VIDEO: "Video",
+  CAMPAIGN: "Campaign",
+  ASSET: "Asset / Link",
+  SOCIAL_AD: "Ad set",
 }
 
 export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps) {
@@ -60,9 +71,31 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
     setShowAssetForm(true)
   }
 
+  const [showAdForm, setShowAdForm] = useState(false)
+
   const openEditAssetForm = (asset: AdminAsset) => {
+    // Ad sets have their own form (visuals + copy) on the Ads page.
+    if (asset.type === "SOCIAL_AD") {
+      router.push(`/admin/ads?edit=${asset.id}`)
+      return
+    }
     setEditingAsset(asset)
     setShowAssetForm(true)
+  }
+
+  const handleAdSubmit = async (data: Record<string, unknown>) => {
+    const response = await fetch("/api/ads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    const json = await response.json()
+    if (!response.ok) {
+      alert(json.error === "Validation error" ? json.details?.map((d: { message: string }) => d.message).join("\n") : json.error)
+      return
+    }
+    setShowAdForm(false)
+    router.refresh()
   }
 
   const handleAssetSubmit = async (data: Partial<Asset>) => {
@@ -149,6 +182,13 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
           <Button
             variant="secondary"
             icon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowAdForm(true)}
+          >
+            Add Ad Set
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Plus className="w-4 h-4" />}
             onClick={() => setShowDocsForm(true)}
           >
             Add Docs Update
@@ -191,7 +231,7 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{asset.title}</p>
-                    <p className="text-sm text-gray-500">{asset.type}</p>
+                    <p className="text-sm text-gray-500">{assetTypeLabels[asset.type] ?? asset.type}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -212,6 +252,9 @@ export function AdminDashboardClient({ recentAssets }: AdminDashboardClientProps
           <p className="text-gray-500">No assets yet</p>
         )}
       </Card>
+
+      {/* Ad Set Form Modal */}
+      <AdSetForm open={showAdForm} onClose={() => setShowAdForm(false)} onSubmit={handleAdSubmit} />
 
       {/* Asset Form Modal */}
       <AssetForm

@@ -17,8 +17,8 @@ import { GET as listProductUpdates } from "@/app/api/v1/product-updates/route"
 import { GET as listWhoIsWho } from "@/app/api/v1/who-is-who/route"
 import { GET as listFeatured } from "@/app/api/v1/featured/route"
 import { GET as listRecent } from "@/app/api/v1/recent/route"
-import { GET as listSocialAds, POST as createSocialAd } from "@/app/api/v1/social-ads/route"
-import { GET as getSocialAd, PATCH as updateSocialAd } from "@/app/api/v1/social-ads/[id]/route"
+import { GET as listAds, POST as createAd } from "@/app/api/v1/ads/route"
+import { GET as getAd, PATCH as updateAd } from "@/app/api/v1/ads/[id]/route"
 
 /**
  * Hosted MCP server (Streamable HTTP) — https://<portal>/api/v1/mcp
@@ -227,10 +227,10 @@ function buildServer(request: NextRequest, canWrite: boolean) {
   )
 
   server.registerTool(
-    "portal_list_social_ads",
+    "portal_list_ads",
     {
       description:
-        "List LinkedIn ad sets. Each ad set groups a campaign's visuals (`media`, with presigned `url`s, in carousel order) and its copy versions (`copies`: introText, headline, ctaLabel, destinationUrl).",
+        "List ad sets (LinkedIn, Meta, Google…). Each ad set groups a campaign's visuals (`media`, with presigned `url`s, in carousel order) and its copy versions (`copies`: introText, headline, ctaLabel, destinationUrl).",
       inputSchema: {
         brand: z.enum(["COLECT", "LE_NEW_BLACK", "BOTH"]).optional().describe("Employees only. COLECT / LE_NEW_BLACK also include BOTH."),
         status: z.enum(["published", "all"]).optional().describe("Default published. all needs a key with content write access."),
@@ -238,17 +238,17 @@ function buildServer(request: NextRequest, canWrite: boolean) {
         offset: z.number().int().min(0).optional(),
       },
     },
-    async (args) => call(listSocialAds as Handler, "GET", "/api/v1/social-ads", { query: args })
+    async (args) => call(listAds as Handler, "GET", "/api/v1/ads", { query: args })
   )
 
   server.registerTool(
-    "portal_get_social_ad",
+    "portal_get_ad",
     {
-      description: "One LinkedIn ad set with all visuals (presigned URLs) and copy versions.",
+      description: "One ad set with all visuals (presigned URLs) and copy versions.",
       inputSchema: { id: z.string().uuid() },
     },
     async ({ id }) =>
-      call(getSocialAd as Handler, "GET", `/api/v1/social-ads/${encodeURIComponent(id)}`, { params: { id } })
+      call(getAd as Handler, "GET", `/api/v1/ads/${encodeURIComponent(id)}`, { params: { id } })
   )
 
   // ── Write tools (admin keys with content write access only) ───────────────
@@ -343,7 +343,7 @@ function buildServer(request: NextRequest, canWrite: boolean) {
   )
 
   const adCopyInput = z.object({
-    introText: z.string().min(1).describe("LinkedIn introductory text (shows above the visual)."),
+    introText: z.string().min(1).describe("Primary/introductory text (shows above the visual)."),
     headline: z.string().optional(),
     description: z.string().optional(),
     ctaLabel: z.string().optional().describe("e.g. Learn more, Request demo, Download, Sign up"),
@@ -361,23 +361,24 @@ function buildServer(request: NextRequest, canWrite: boolean) {
       .min(1)
       .describe("Visuals in carousel order; the first is the cover."),
     copies: z.array(adCopyInput).optional().describe("Copy versions for this ad set."),
+    adPlatform: z.enum(["LINKEDIN", "META", "GOOGLE", "OTHER"]).optional().describe("Default LINKEDIN."),
   }
 
   server.registerTool(
-    "portal_create_social_ad",
+    "portal_create_ad",
     {
       description:
-        "Create a LinkedIn ad set: upload each visual with portal_create_upload (assetType SOCIAL_AD) and PUT the bytes, then call this with the fileUrls and the copy. `visibility` is required — ad sets are usually EMPLOYEES (internal). Draft unless `publish: true`.",
+        "Create an ad set (one per campaign): upload each visual with portal_create_upload (assetType SOCIAL_AD) and PUT the bytes, then call this with the fileUrls and the copy. `visibility` is required — ad sets are usually EMPLOYEES (internal). Draft unless `publish: true`.",
       inputSchema: { visibility: z.enum(["EVERYONE", "EMPLOYEES"]), ...adSetFields },
     },
-    async (args) => call(createSocialAd as Handler, "POST", "/api/v1/social-ads", { body: args })
+    async (args) => call(createAd as Handler, "POST", "/api/v1/ads", { body: args })
   )
 
   server.registerTool(
-    "portal_update_social_ad",
+    "portal_update_ad",
     {
       description:
-        "Edit a LinkedIn ad set. Send only what changes. `media` / `copies`, when sent, replace the whole list — include the ones to keep (existing visuals keep their `fileUrl` from portal_get_social_ad).",
+        "Edit an ad set. Send only what changes. `media` / `copies`, when sent, replace the whole list — include the ones to keep (existing visuals keep their `fileUrl` from portal_get_ad).",
       inputSchema: {
         id: z.string().uuid(),
         visibility: z.enum(["EVERYONE", "EMPLOYEES"]).optional(),
@@ -387,7 +388,7 @@ function buildServer(request: NextRequest, canWrite: boolean) {
       },
     },
     async ({ id, ...body }) =>
-      call(updateSocialAd as Handler, "PATCH", `/api/v1/social-ads/${encodeURIComponent(id)}`, { params: { id }, body })
+      call(updateAd as Handler, "PATCH", `/api/v1/ads/${encodeURIComponent(id)}`, { params: { id }, body })
   )
 
   return server

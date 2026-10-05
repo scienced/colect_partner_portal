@@ -372,11 +372,11 @@ curl -X POST https://partnerportal.colect.io/api/v1/assets \
           <Code>brand: null</Code> clears the tag.
         </P>
       </Endpoint>
-      <Endpoint id="endpoint-social-ads" method="POST" path="/api/v1/social-ads">
+      <Endpoint id="endpoint-ads" method="POST" path="/api/v1/ads">
         <P>
           LinkedIn ad sets — one per campaign, holding several visuals and copy
-          versions. <Code>GET /api/v1/social-ads</Code> lists them,{" "}
-          <Code>GET</Code>/<Code>PATCH /api/v1/social-ads/{"{id}"}</Code> reads
+          versions. <Code>GET /api/v1/ads</Code> lists them,{" "}
+          <Code>GET</Code>/<Code>PATCH /api/v1/ads/{"{id}"}</Code> reads
           or edits one. Upload each visual first with{" "}
           <Code>assetType: &quot;SOCIAL_AD&quot;</Code>.
         </P>

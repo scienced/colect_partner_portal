@@ -57,7 +57,7 @@ export const PATCH = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) =
   const existing = await prisma.asset.findUnique({ where: { id }, select: { publishedAt: true, type: true } })
   if (!existing) return httpErrors.notFound("Asset not found.")
   if (existing.type === "SOCIAL_AD") {
-    return httpErrors.badRequest("This is a social ad set — edit it with PATCH /api/v1/social-ads/{id}.")
+    return httpErrors.badRequest("This is an ad set — edit it with PATCH /api/v1/ads/{id}.")
   }
 
   try {

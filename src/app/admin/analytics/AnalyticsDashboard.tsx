@@ -248,7 +248,7 @@ export function AnalyticsDashboard() {
                   <td className="py-3 font-medium text-gray-900">{asset.title}</td>
                   <td className="py-3">
                     <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
-                      {asset.type}
+                      {asset.type === "SOCIAL_AD" ? "AD" : asset.type}
                     </span>
                   </td>
                   <td className="py-3 text-right text-gray-900">{asset.clicks}</td>

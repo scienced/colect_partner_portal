@@ -356,7 +356,7 @@ export function buildOpenApiSpec(origin: string) {
           },
         },
       },
-      "/api/v1/social-ads": {
+      "/api/v1/ads": {
         get: {
           summary: "List LinkedIn ad sets (visuals + copy versions)",
           parameters: [
@@ -373,7 +373,7 @@ export function buildOpenApiSpec(origin: string) {
           responses: { "201": { description: "Created ad set" }, "400": { description: "Validation error" }, "403": { description: "Key lacks write:content" } },
         },
       },
-      "/api/v1/social-ads/{id}": {
+      "/api/v1/ads/{id}": {
         get: {
           summary: "One LinkedIn ad set",
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],

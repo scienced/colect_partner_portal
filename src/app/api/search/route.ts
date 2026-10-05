@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
             : a.type === "VIDEO"
             ? "/videos"
             : a.type === "SOCIAL_AD"
-            ? `/social-ads?asset=${a.id}`
+            ? `/ads?asset=${a.id}`
             : "/assets",
         // Full asset data for drawer
         description: a.description,

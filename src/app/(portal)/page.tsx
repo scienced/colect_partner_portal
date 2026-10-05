@@ -5,8 +5,12 @@ import Image from "next/image"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ContentRow, ContentItem } from "@/components/portal/ContentRow"
 import { AssetInfoDrawer } from "@/components/portal/AssetInfoDrawer"
+import { AdSetDrawer } from "@/components/portal/AdSetDrawer"
+import useSWR from "swr"
+import { fetcher } from "@/lib/swr"
+import type { SerializedAdSet } from "@/lib/adSets"
 import { formatDistanceToNow } from "date-fns"
-import { Sparkles, FileText, Play, Mail, ExternalLink, BookOpen, Star, Info } from "lucide-react"
+import { Sparkles, FileText, Play, Mail, ExternalLink, BookOpen, Star, Info, Megaphone } from "lucide-react"
 import { useHomepageData } from "@/lib/swr"
 import type { Asset, DocsUpdate, FeaturedItem } from "@/types"
 import { getYouTubeThumbnail } from "@/lib/utils"
@@ -18,6 +22,7 @@ const categoryColors: Record<string, string> = {
   campaign: "from-purple-500 to-purple-600",
   asset: "from-teal-500 to-teal-600",
   docs: "from-amber-500 to-amber-600",
+  ad: "from-sky-500 to-sky-600",
 }
 
 // Category icons for featured items
@@ -26,6 +31,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   video: <Play className="w-6 h-6 text-white" />,
   campaign: <Mail className="w-6 h-6 text-white" />,
   asset: <ExternalLink className="w-6 h-6 text-white" />,
+  ad: <Megaphone className="w-6 h-6 text-white" />,
   docs: <BookOpen className="w-6 h-6 text-white" />,
 }
 
@@ -34,6 +40,13 @@ export default function HomePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [selectedAsset, setSelectedAsset] = useState<ContentItem | null>(null)
+  // Ad sets carry visuals + copy the homepage payload doesn't include, so the
+  // ad drawer loads the full ad set when one is opened.
+  const selectedAdId = selectedAsset?.category === "ad" ? selectedAsset.id : null
+  const { data: selectedAdSet } = useSWR<SerializedAdSet>(
+    selectedAdId ? `/api/portal/ads/${selectedAdId}` : null,
+    fetcher
+  )
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   // Input type for transformToContentItem - can be Asset, DocsUpdate, or merged item
@@ -62,7 +75,8 @@ export default function HomePage() {
 
   // Helper to transform raw data to ContentItem with all fields
   const transformToContentItem = useCallback((item: TransformableItem): ContentItem => {
-    const category = item.type?.toLowerCase() || "asset"
+    // Ad sets (SOCIAL_AD) render as category "ad" and open the ad drawer.
+    const category = item.type === "SOCIAL_AD" ? "ad" : item.type?.toLowerCase() || "asset"
     // Generate YouTube thumbnail for videos if no thumbnail is set
     const thumbnailUrl = item.thumbnailUrl ||
       (item.type === "VIDEO" ? getYouTubeThumbnail(item.externalLink) : undefined)
@@ -221,26 +235,31 @@ export default function HomePage() {
     brand: campaign.brand,
   }))
 
-  const assetItems: ContentItem[] = assets.map((asset) => ({
-    id: asset.id,
-    title: asset.title,
-    description: asset.description,
-    thumbnailUrl: asset.thumbnailUrl,
-    blurDataUrl: asset.blurDataUrl,
-    type: "ASSET",
-    href: asset.externalLink || asset.fileUrl || "/assets",
-    external: !!(asset.externalLink || asset.fileUrl),
-    fileUrl: asset.fileUrl,
-    externalLink: asset.externalLink,
-    category: "asset" as const,
-    availableLanguages: asset.availableLanguages,
-    persona: asset.persona,
-    createdAt: asset.createdAt,
-    updatedAt: asset.updatedAt,
-    isPinned: asset.isPinned,
-    visibility: asset.visibility,
-    brand: asset.brand,
-  }))
+  // "Assets & Links" mixes general assets with ad sets (employees mostly —
+  // the API already filters by visibility). Ads open the ad drawer.
+  const assetItems: ContentItem[] = assets.map((asset) => {
+    const isAd = asset.type === "SOCIAL_AD"
+    return {
+      id: asset.id,
+      title: asset.title,
+      description: asset.description,
+      thumbnailUrl: asset.thumbnailUrl,
+      blurDataUrl: asset.blurDataUrl,
+      type: asset.type,
+      href: isAd ? `/ads?asset=${asset.id}` : asset.externalLink || asset.fileUrl || "/assets",
+      external: !isAd && !!(asset.externalLink || asset.fileUrl),
+      fileUrl: asset.fileUrl,
+      externalLink: asset.externalLink,
+      category: isAd ? ("ad" as const) : ("asset" as const),
+      availableLanguages: asset.availableLanguages,
+      persona: asset.persona,
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+      isPinned: asset.isPinned,
+      visibility: asset.visibility,
+      brand: asset.brand,
+    }
+  })
 
   const docsItems: ContentItem[] = docsUpdates.map((doc) => ({
     id: doc.id,
@@ -280,7 +299,7 @@ export default function HomePage() {
       fileUrl: item.fileUrl,
       externalLink,
       meta: formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true }),
-      category: item.type?.toLowerCase() as ContentItem["category"],
+      category: (item.type === "SOCIAL_AD" ? "ad" : item.type?.toLowerCase()) as ContentItem["category"],
       status: isNew ? "new" as const : "updated" as const,
       availableLanguages: item.availableLanguages,
       persona: item.persona,
@@ -436,9 +455,15 @@ export default function HomePage() {
         )}
       </div>
 
+      <AdSetDrawer
+        adSet={selectedAdId && selectedAdSet?.id === selectedAdId ? selectedAdSet : null}
+        open={drawerOpen && !!selectedAdId}
+        onClose={handleDrawerClose}
+      />
+
       {/* Asset Info Drawer */}
       <AssetInfoDrawer
-        asset={selectedAsset ? {
+        asset={selectedAsset && selectedAsset.category !== "ad" ? {
           id: selectedAsset.id,
           title: selectedAsset.title,
           description: selectedAsset.description,
@@ -462,7 +487,7 @@ export default function HomePage() {
           spaceName: selectedAsset.spaceName ?? null,
           isNew: selectedAsset.isNew,
         } : null}
-        open={drawerOpen}
+        open={drawerOpen && selectedAsset?.category !== "ad"}
         onClose={handleDrawerClose}
       />
     </div>
@@ -482,6 +507,8 @@ function getAssetHref(asset: { type?: string; fileUrl?: string | null; externalL
       return asset.externalLink || asset.fileUrl || "/assets"
     case "DOCS":
       return asset.externalLink || "/docs-updates"
+    case "SOCIAL_AD":
+      return "/ads"
     default:
       return "/"
   }

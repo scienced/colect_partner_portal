@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/layout/SectionHeader"
 import { getSessionViewer } from "@/lib/supertokens/session"
 import { findAdSets, serializeAdSets } from "@/lib/adSets"
-import { SocialAdsList } from "./SocialAdsList"
+import { AdsList } from "./AdsList"
 
 export const dynamic = "force-dynamic"
 
-export default async function AdminSocialAdsPage() {
+export default async function AdminAdsPage() {
   // The admin layout redirects non-admins; render nothing rather than throw
   // (layout and page render in parallel).
   const auth = await getSessionViewer()
@@ -17,10 +17,10 @@ export default async function AdminSocialAdsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Social Ads"
-        description="LinkedIn ad sets — visuals and copy, grouped per campaign"
+        title="Ads"
+        description="Ad sets — visuals and copy, grouped per campaign"
       />
-      <SocialAdsList initialItems={items} />
+      <AdsList initialItems={items} />
     </div>
   )
 }

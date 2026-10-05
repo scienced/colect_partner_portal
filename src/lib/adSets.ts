@@ -9,17 +9,19 @@ import { getObjectBuffer, getPresignedUrls, headObject, ourBucketKeyFromUrl, buc
 import { processAndUploadThumbnail } from "@/lib/thumbnails"
 
 /**
- * Social ad sets — one Asset row (type SOCIAL_AD) holding many visuals
+ * Ad sets — one Asset row (type SOCIAL_AD) holding many visuals
  * (AssetMedia, in order) and one or more copy versions (AdCopy). One ad set
- * per campaign keeps the Social ads page from filling up with single ads.
+ * per campaign keeps the Ads page from filling up with single ads.
  *
- * Shared by the admin routes (/api/social-ads), the portal page
- * (/api/portal/social-ads) and the agent API (/api/v1/social-ads + MCP).
+ * Shared by the admin routes (/api/ads), the portal page
+ * (/api/portal/ads) and the agent API (/api/v1/ads + MCP).
  */
 
 /** Storage folder for ad visuals (private, presigned on read). */
 export const AD_MEDIA_FOLDER = "social-ads/"
-export const AD_PLATFORMS = ["LINKEDIN"] as const
+export const AD_PLATFORMS = ["LINKEDIN", "META", "GOOGLE", "OTHER"] as const
+export type AdPlatform = (typeof AD_PLATFORMS)[number]
+
 export const MAX_AD_MEDIA = 30
 export const MAX_AD_COPIES = 10
 const MAX_THUMBNAIL_SOURCE_BYTES = 15 * 1024 * 1024

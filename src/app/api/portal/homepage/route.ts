@@ -44,6 +44,7 @@ const assetSelect = {
   pinOrder: true,
   visibility: true,
   brand: true,
+  adPlatform: true,
   variants: variantInclude,
 } as const
 
@@ -143,7 +144,8 @@ export async function GET() {
         select: assetSelect,
       }),
       prisma.asset.findMany({
-        where: { type: "ASSET", publishedAt: { not: null }, ...access },
+        // Ad sets share the "Assets & Links" row with general assets.
+        where: { type: { in: ["ASSET", "SOCIAL_AD"] }, publishedAt: { not: null }, ...access },
         orderBy: [{ isPinned: "desc" }, { pinOrder: "desc" }, { publishedAt: "desc" }],
         take: 10,
         select: assetSelect,
@@ -154,8 +156,7 @@ export async function GET() {
         take: 8,
       }),
       prisma.asset.findMany({
-        // Ad sets have no single file to open from a homepage card.
-        where: { publishedAt: { not: null }, type: { not: "SOCIAL_AD" }, ...access },
+        where: { publishedAt: { not: null }, ...access },
         orderBy: { updatedAt: "desc" },
         take: 10,
         select: assetSelect,
@@ -389,7 +390,7 @@ export async function GET() {
           thumbnailUrl,
           href: getAssetHref(asset.type, fileUrl, externalLink, asset.campaignLink),
           external: shouldOpenExternal(asset.type, fileUrl, externalLink, asset.campaignLink),
-          category: asset.type.toLowerCase(),
+          category: asset.type === "SOCIAL_AD" ? "ad" : asset.type.toLowerCase(),
           asset: {
             id: asset.id,
             type: asset.type,

@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils"
 import { SUPPORTED_LANGUAGES } from "@/lib/assetVariants"
 import { AD_MEDIA_ACCEPT, expandFiles, uploadAdMedia } from "@/lib/adMediaUpload"
 import type { SerializedAdSet } from "@/lib/adSets"
+import { AD_PLATFORM_OPTIONS } from "@/lib/adPlatforms"
 
-// LinkedIn's call-to-action button options.
-const LINKEDIN_CTAS = [
+// Common call-to-action button labels (LinkedIn's set covers most platforms).
+const CTA_OPTIONS = [
   "Learn more", "Request demo", "Download", "Sign up", "Register", "Subscribe",
   "Apply", "Get quote", "Join", "Attend", "Contact us", "View quote",
 ]
@@ -89,6 +90,7 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
   const [description, setDescription] = useState("")
   const [visibility, setVisibility] = useState<AssetVisibility>("EMPLOYEES")
   const [brand, setBrand] = useState<ContentBrand | "">("")
+  const [platform, setPlatform] = useState<string>("LINKEDIN")
   const [publish, setPublish] = useState(false)
   const [media, setMedia] = useState<MediaItem[]>([])
   const [copies, setCopies] = useState<CopyItem[]>([emptyCopy()])
@@ -104,6 +106,7 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
     setDescription(initialData?.description ?? "")
     setVisibility((initialData?.visibility as AssetVisibility) ?? "EMPLOYEES")
     setBrand((initialData?.brand as ContentBrand) ?? "")
+    setPlatform(initialData?.adPlatform ?? "LINKEDIN")
     setPublish(initialData ? initialData.published : false)
     setMedia(initialMedia(initialData))
     setCopies(initialCopies(initialData))
@@ -179,7 +182,7 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
         description: description.trim() || null,
         visibility,
         brand: brand || null,
-        adPlatform: "LINKEDIN",
+        adPlatform: platform,
         publish,
         media: ready.map((m) => ({ fileUrl: m.fileUrl, fileName: m.fileName })),
         copies: filledCopies.map((c) => ({
@@ -222,6 +225,11 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
           placeholder="e.g. Q4 retargeting — Le New Black"
           required
         />
+        <Select label="Platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
+          {AD_PLATFORM_OPTIONS.map((p) => (
+            <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+        </Select>
         <Textarea
           label="Notes (optional)"
           value={description}
@@ -355,8 +363,9 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
                     rows={4}
                     placeholder="The text above the visual…"
                   />
-                  <p className={cn("text-xs mt-1", c.introText.length > 150 ? "text-amber-700" : "text-gray-400")}>
-                    {c.introText.length} characters{c.introText.length > 150 && " — LinkedIn cuts off after ~150 with “…see more”"}
+                  <p className={cn("text-xs mt-1", platform === "LINKEDIN" && c.introText.length > 150 ? "text-amber-700" : "text-gray-400")}>
+                    {c.introText.length} characters
+                    {platform === "LINKEDIN" && c.introText.length > 150 && " — LinkedIn cuts off after ~150 with “…see more”"}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -368,7 +377,7 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
                   />
                   <Select label="Call to action" value={c.ctaLabel} onChange={(e) => updateCopy(c.key, { ctaLabel: e.target.value })}>
                     <option value="">None</option>
-                    {LINKEDIN_CTAS.map((cta) => (
+                    {CTA_OPTIONS.map((cta) => (
                       <option key={cta} value={cta}>{cta}</option>
                     ))}
                   </Select>
@@ -427,7 +436,7 @@ export function AdSetForm({ open, onClose, onSubmit, initialData }: AdSetFormPro
           </Select>
           <Checkbox
             label="Publish"
-            description="Show it on the Social Ads page now (otherwise it's saved as a draft)"
+            description="Show it on the Ads page now (otherwise it's saved as a draft)"
             checked={publish}
             onChange={(e) => setPublish(e.target.checked)}
           />

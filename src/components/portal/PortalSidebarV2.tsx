@@ -33,7 +33,7 @@ const navItems = [
   { href: "/videos", label: "Videos", icon: Play },
   { href: "/assets", label: "Assets & Links", icon: FolderOpen },
   // Internal for now: only Colect / Le New Black staff see this item.
-  { href: "/social-ads", label: "Social Ads", icon: Megaphone, employeesOnly: true },
+  { href: "/ads", label: "Ads", icon: Megaphone, employeesOnly: true },
   { href: "/docs-updates", label: "Documentation", icon: BookOpen },
   { href: "/who-is-who", label: "Who's Who", icon: Users },
   { href: "/settings/api-keys", label: "API Keys", icon: Key },

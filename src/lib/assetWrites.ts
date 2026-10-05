@@ -164,6 +164,9 @@ export async function updateAsset(id: string, data: UpdateAssetInput, changeNote
     include: { variants: true },
   })
   if (!existing) throw new AssetWriteError(404, "Asset not found")
+  if (existing.type === "SOCIAL_AD") {
+    throw new AssetWriteError(400, "This is an ad set — edit it on the Ads page.")
+  }
 
   // Check max pinned limit if trying to pin (and not already pinned)
   if (data.isPinned && !existing.isPinned) {
