@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSessionViewer } from "@/lib/supertokens/session"
-import { assetAccessWhere, internalAssetFields, shapeAssetForViewer } from "@/lib/access"
+import { assetAccessWhere, featuredAccessWhere, internalAssetFields, shapeAssetForViewer } from "@/lib/access"
 import { prisma } from "@/lib/prisma"
 import { getPresignedUrls } from "@/lib/s3"
 import { defaultVariant } from "@/lib/assetVariants"
@@ -113,7 +113,7 @@ export async function GET() {
           AND: [
             { OR: [{ endDate: null }, { endDate: { gt: new Date() } }] },
             // Featured items pointing at an asset the viewer can't see are hidden.
-            { OR: [{ assetId: null }, { asset: access }] },
+            featuredAccessWhere(viewer),
           ],
         },
         orderBy: { displayOrder: "asc" },

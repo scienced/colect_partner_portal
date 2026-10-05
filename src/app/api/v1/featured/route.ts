@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { requireApiKey, isAuthResponse } from "@/lib/v1Auth"
 import { ok, withV1Handler } from "@/lib/v1Response"
 import { prisma } from "@/lib/prisma"
-import { assetAccessWhere } from "@/lib/access"
+import { featuredAccessWhere } from "@/lib/access"
 
 export const dynamic = "force-dynamic"
 
@@ -17,7 +17,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
       startDate: { lte: now },
       AND: [
         { OR: [{ endDate: null }, { endDate: { gt: now } }] },
-        { OR: [{ assetId: null }, { asset: assetAccessWhere(auth.viewer) }] },
+        featuredAccessWhere(auth.viewer),
       ],
     },
     orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],

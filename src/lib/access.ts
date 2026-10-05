@@ -75,6 +75,16 @@ export function assetAccessWhere(viewer: Viewer): Prisma.AssetWhereInput {
   return viewer.isEmployee ? {} : { visibility: "EVERYONE" }
 }
 
+/**
+ * Prisma filter for FeaturedContent: hide items linked to an asset the viewer
+ * can't see. Returns `{}` for employees — never pass an empty `asset: {}`
+ * relation filter, Prisma treats that as "match nothing" inside an OR.
+ */
+export function featuredAccessWhere(viewer: Viewer): Prisma.FeaturedContentWhereInput {
+  if (viewer.isEmployee) return {}
+  return { OR: [{ assetId: null }, { asset: { visibility: "EVERYONE" } }] }
+}
+
 export function canSeeAsset(viewer: Viewer, asset: { visibility: AssetVisibility }): boolean {
   return viewer.isEmployee || asset.visibility === "EVERYONE"
 }
