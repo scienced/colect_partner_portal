@@ -3,7 +3,7 @@
  */
 
 // Asset types matching Prisma schema
-export type AssetType = "DECK" | "CAMPAIGN" | "ASSET" | "VIDEO"
+export type AssetType = "DECK" | "CAMPAIGN" | "ASSET" | "VIDEO" | "SOCIAL_AD"
 
 // One language version of an asset (file or link)
 export interface AssetVariant {

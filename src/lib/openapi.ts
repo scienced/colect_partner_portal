@@ -9,7 +9,7 @@
  * so it doubles as readable in-repo documentation.
  */
 
-export const SPEC_VERSION = "1.1.0"
+export const SPEC_VERSION = "1.2.0"
 
 export function buildOpenApiSpec(origin: string) {
   return {
@@ -311,7 +311,7 @@ export function buildOpenApiSpec(origin: string) {
                     filename: { type: "string" },
                     contentType: { type: "string", example: "application/pdf" },
                     purpose: { type: "string", enum: ["file", "thumbnail"], default: "file" },
-                    assetType: { type: "string", enum: ["DECK", "CAMPAIGN", "ASSET", "VIDEO"] },
+                    assetType: { type: "string", enum: ["DECK", "CAMPAIGN", "ASSET", "VIDEO", "SOCIAL_AD"] },
                   },
                 },
               },
@@ -354,6 +354,36 @@ export function buildOpenApiSpec(origin: string) {
             "403": { description: "Key lacks write:content" },
             "404": { description: "Not found" },
           },
+        },
+      },
+      "/api/v1/social-ads": {
+        get: {
+          summary: "List LinkedIn ad sets (visuals + copy versions)",
+          parameters: [
+            { name: "brand", in: "query", schema: { type: "string", enum: ["COLECT", "LE_NEW_BLACK", "BOTH"] }, description: "Employee keys only." },
+            { name: "status", in: "query", schema: { type: "string", enum: ["published", "all"], default: "published" }, description: "all needs a write:content key." },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
+            { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
+          ],
+          responses: { "200": { description: "Ad sets" }, "401": { description: "Unauthorized" } },
+        },
+        post: {
+          summary: "Create a LinkedIn ad set (write:content keys)",
+          description: "Upload each visual with POST /api/v1/uploads (assetType SOCIAL_AD), then send `title`, `visibility`, `media[]` ({fileUrl, fileName?}, carousel order) and optional `copies[]` ({introText, headline, description, ctaLabel, destinationUrl, language, label}). Draft unless `publish: true`.",
+          responses: { "201": { description: "Created ad set" }, "400": { description: "Validation error" }, "403": { description: "Key lacks write:content" } },
+        },
+      },
+      "/api/v1/social-ads/{id}": {
+        get: {
+          summary: "One LinkedIn ad set",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: { "200": { description: "Ad set" }, "404": { description: "Not found" } },
+        },
+        patch: {
+          summary: "Edit a LinkedIn ad set (write:content keys)",
+          description: "Send only what changes. `media` / `copies` replace the whole list.",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: { "200": { description: "Updated ad set" }, "400": { description: "Validation error" }, "404": { description: "Not found" } },
         },
       },
       "/api/v1/docs-updates": {

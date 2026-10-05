@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { createChangelog } from "@/lib/changelog"
 import { z } from "zod"
+import type { AssetType } from "@prisma/client"
 import {
   canonicalLanguage,
   legacyColumnsFromVariants,
@@ -92,7 +93,7 @@ export const UpdateAssetSchema = z.object({
 export type CreateAssetInput = z.infer<typeof CreateAssetSchema>
 export type UpdateAssetInput = z.infer<typeof UpdateAssetSchema>
 
-async function assertPinCapacity(type: CreateAssetInput["type"], excludeId?: string) {
+async function assertPinCapacity(type: AssetType, excludeId?: string) {
   const pinnedCount = await prisma.asset.count({
     where: {
       type,

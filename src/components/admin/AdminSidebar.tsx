@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Shield,
   BarChart3,
+  Megaphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/assets", label: "Assets", icon: FileText },
+  { href: "/admin/social-ads", label: "Social Ads", icon: Megaphone },
   { href: "/admin/docs-updates", label: "Docs Updates", icon: BookOpen },
   { href: "/admin/who-is-who", label: "Who's Who", icon: Users },
   { href: "/admin/featured", label: "Featured", icon: Star },

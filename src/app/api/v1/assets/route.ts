@@ -29,6 +29,9 @@ export const GET = withV1Handler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
 
   const typeParam = searchParams.get("type")?.toUpperCase()
+  if (typeParam === "SOCIAL_AD") {
+    return httpErrors.badRequest("Social ad sets have their own endpoint: GET /api/v1/social-ads.")
+  }
   if (typeParam && !ASSET_TYPES.includes(typeParam as AssetType)) {
     return httpErrors.badRequest(
       `Unknown asset type "${typeParam}". Allowed: ${ASSET_TYPES.join(", ")}.`
@@ -84,7 +87,7 @@ export const GET = withV1Handler(async (request: NextRequest) => {
     ...(viewer.isEmployee && brandParam
       ? { brand: brandParam === "BOTH" ? "BOTH" : { in: [brandParam as "COLECT" | "LE_NEW_BLACK", "BOTH"] } }
       : {}),
-    ...(typeParam ? { type: typeParam as AssetType } : {}),
+    ...(typeParam ? { type: typeParam as AssetType } : { type: { not: "SOCIAL_AD" } }),
     ...(region ? { region: { has: region } } : {}),
     ...(persona ? { persona: { has: persona } } : {}),
     ...(language ? { availableLanguages: { has: language.toUpperCase() } } : {}),

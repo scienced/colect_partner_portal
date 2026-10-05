@@ -154,7 +154,8 @@ export async function GET() {
         take: 8,
       }),
       prisma.asset.findMany({
-        where: { publishedAt: { not: null }, ...access },
+        // Ad sets have no single file to open from a homepage card.
+        where: { publishedAt: { not: null }, type: { not: "SOCIAL_AD" }, ...access },
         orderBy: { updatedAt: "desc" },
         take: 10,
         select: assetSelect,

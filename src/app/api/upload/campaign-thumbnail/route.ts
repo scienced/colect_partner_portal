@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireAdmin } from "@/lib/supertokens/session"
-import { uploadThumbnail, getKeyFromUrl, getPresignedDownloadUrl, isS3Url } from "@/lib/s3"
+import { uploadThumbnail, getKeyFromUrl, getPresignedDownloadUrl, isS3Url, ourBucketKeyFromUrl } from "@/lib/s3"
 import { captureScreenshot, downloadScreenshot } from "@/lib/captureapi"
 import sharp from "sharp"
 
 // Thumbnail settings
 const THUMBNAIL_WIDTH = 400
 const THUMBNAIL_QUALITY = 80
-
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || ""
-const AWS_REGION = process.env.AWS_REGION || "eu-west-1"
 
 const requestSchema = z.object({
   htmlUrl: z.string().url(),
@@ -21,32 +18,7 @@ const requestSchema = z.object({
  * Only URLs from our own S3 bucket are allowed.
  */
 function isValidS3UrlFromOurBucket(url: string): boolean {
-  if (!BUCKET_NAME) return false
-
-  try {
-    const urlObj = new URL(url)
-
-    // Must be HTTPS
-    if (urlObj.protocol !== "https:") return false
-
-    // Allowed S3 hostnames for our bucket
-    const allowedHostnames = [
-      `${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com`,
-      `${BUCKET_NAME}.s3.amazonaws.com`,
-    ]
-
-    // For path-style URLs (s3.region.amazonaws.com/bucket)
-    if (urlObj.hostname === `s3.${AWS_REGION}.amazonaws.com` ||
-        urlObj.hostname === "s3.amazonaws.com") {
-      // Verify bucket name is the first path segment
-      const segments = urlObj.pathname.split("/").filter(Boolean)
-      return segments.length >= 1 && segments[0] === BUCKET_NAME
-    }
-
-    return allowedHostnames.includes(urlObj.hostname)
-  } catch {
-    return false
-  }
+  return ourBucketKeyFromUrl(url) !== null
 }
 
 export async function POST(request: NextRequest) {

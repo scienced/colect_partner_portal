@@ -130,9 +130,11 @@ export function canonicalLanguage(code: string): SupportedLanguage {
  */
 export function stripPresignQuery(url: string | null | undefined): string | null {
   if (!url) return null
-  // Only strip if it's an S3 URL AND has presign params. External links can
-  // have legitimate query strings (e.g., YouTube ?v=...) and must be preserved.
-  if (!url.includes(".s3.") || !url.includes("amazonaws.com")) return url
+  // Only strip SigV4 presign params (X-Amz-*). External links can have
+  // legitimate query strings (e.g., YouTube ?v=...) and must be preserved.
+  // Keying on the signature rather than the host also covers a local
+  // S3-compatible endpoint (S3_ENDPOINT) in development.
   const q = url.indexOf("?")
-  return q === -1 ? url : url.slice(0, q)
+  if (q === -1 || !/[?&]X-Amz-(Signature|Credential)=/.test(url)) return url
+  return url.slice(0, q)
 }

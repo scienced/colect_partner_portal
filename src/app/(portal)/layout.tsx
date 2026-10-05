@@ -1,4 +1,5 @@
 import { getServerSession } from "@/lib/supertokens/session"
+import { getViewer } from "@/lib/access"
 import { PortalLayoutClient } from "./PortalLayoutClient"
 import { SessionRefreshWrapper } from "@/components/auth/SessionRefreshWrapper"
 
@@ -15,8 +16,11 @@ export default async function PortalLayout({
     return <SessionRefreshWrapper>{children}</SessionRefreshWrapper>
   }
 
+  // Employees (Colect / Le New Black staff, admins) get the internal sections.
+  const isEmployee = session.user ? (await getViewer(session.user)).isEmployee : false
+
   return (
-    <PortalLayoutClient user={session.user}>
+    <PortalLayoutClient user={session.user} isEmployee={isEmployee}>
       {children}
     </PortalLayoutClient>
   )

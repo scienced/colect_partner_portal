@@ -54,8 +54,11 @@ export const PATCH = withV1Handler<RouteCtx>(async (request: NextRequest, ctx) =
   if (!parsed.success) return httpErrors.badRequest(zodMessage(parsed.error))
   if (Object.keys(parsed.data).length === 0) return httpErrors.badRequest("Nothing to update.")
 
-  const existing = await prisma.asset.findUnique({ where: { id }, select: { publishedAt: true } })
+  const existing = await prisma.asset.findUnique({ where: { id }, select: { publishedAt: true, type: true } })
   if (!existing) return httpErrors.notFound("Asset not found.")
+  if (existing.type === "SOCIAL_AD") {
+    return httpErrors.badRequest("This is a social ad set — edit it with PATCH /api/v1/social-ads/{id}.")
+  }
 
   try {
     const input = await toUpdateInput(parsed.data, existing)

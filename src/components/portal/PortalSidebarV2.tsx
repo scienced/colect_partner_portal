@@ -19,6 +19,7 @@ import {
   Loader2,
   BookOpen,
   Key,
+  Megaphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Session from "supertokens-web-js/recipe/session"
@@ -31,6 +32,8 @@ const navItems = [
   { href: "/campaigns", label: "Campaigns", icon: Mail },
   { href: "/videos", label: "Videos", icon: Play },
   { href: "/assets", label: "Assets & Links", icon: FolderOpen },
+  // Internal for now: only Colect / Le New Black staff see this item.
+  { href: "/social-ads", label: "Social Ads", icon: Megaphone, employeesOnly: true },
   { href: "/docs-updates", label: "Documentation", icon: BookOpen },
   { href: "/who-is-who", label: "Who's Who", icon: Users },
   { href: "/settings/api-keys", label: "API Keys", icon: Key },
@@ -38,6 +41,7 @@ const navItems = [
 
 interface PortalSidebarV2Props {
   isAdmin?: boolean
+  isEmployee?: boolean
   user?: {
     name?: string | null
     email: string
@@ -46,7 +50,7 @@ interface PortalSidebarV2Props {
   onAssetClick?: (asset: AssetDrawerData) => void
 }
 
-export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2Props) {
+export function PortalSidebarV2({ isAdmin, isEmployee, user, onAssetClick }: PortalSidebarV2Props) {
   const pathname = usePathname()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -128,7 +132,8 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
 
     // For asset results, open the drawer instead of navigating
     // Note: onAssetClick (handleInfoClick) already updates the URL
-    if (result.category === "asset" && onAssetClick && result.type) {
+    // Ad sets open on their own page (the generic drawer has no gallery).
+    if (result.category === "asset" && onAssetClick && result.type && result.type !== "SOCIAL_AD") {
       onAssetClick({
         id: result.id,
         title: result.title,
@@ -224,7 +229,7 @@ export function PortalSidebarV2({ isAdmin, user, onAssetClick }: PortalSidebarV2
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-2 space-y-1 overflow-auto">
-          {navItems.map((item) => {
+          {navItems.filter((item) => !item.employeesOnly || isEmployee).map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
             const isNavigating = navigatingTo === item.href

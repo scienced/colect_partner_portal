@@ -88,6 +88,12 @@ Two main areas:
 - Hosted MCP server: `src/app/api/v1/mcp/route.ts` (stateless Streamable HTTP). Each tool invokes the matching v1 route handler in-process, so auth/visibility/audit are identical to REST. `mcp-server/` is a legacy local stdio copy.
 - Spec: `src/lib/openapi.ts` (served at `/api/v1/openapi.json`); public docs at `/docs/api` and `/docs/mcp`.
 
+**Social ads** (`Asset.type = SOCIAL_AD`):
+- One ad set per campaign: many visuals (`AssetMedia`, ordered; first = cover/thumbnail) + copy versions (`AdCopy`). Logic in `src/lib/adSets.ts`; admin `/admin/social-ads`, portal `/social-ads` (nav item employees-only), API `/api/v1/social-ads`, MCP `portal_*_social_ad(s)`.
+- Ad sets are excluded from the generic asset lists/homepage rows; search links to `/social-ads?asset=<id>`.
+
+**Local storage**: set `S3_ENDPOINT` (see `.env.local`) to use the local RustFS container `colect-portal-s3` instead of AWS. All bucket URL building/parsing goes through `bucketUrlForKey` / `ourBucketKeyFromUrl` in `src/lib/s3.ts`.
+
 ### Key Library Files
 
 - `src/lib/access.ts` — Employee/partner audience rules for assets (see above)

@@ -34,6 +34,7 @@ export function assetPortalUrl(origin: string, type: AssetType | string, id?: st
       case "DECK": return `${origin}/decks`
       case "CAMPAIGN": return `${origin}/campaigns`
       case "VIDEO": return `${origin}/videos`
+      case "SOCIAL_AD": return `${origin}/social-ads`
       default: return `${origin}/assets`
     }
   })()
