@@ -25,6 +25,7 @@ import { useAnalytics } from "@/hooks/useAnalytics"
 import { defaultVariant as pickDefaultVariant, canonicalLanguage } from "@/lib/assetVariants"
 import type { AssetInfo, AssetVariant } from "@/types"
 import { AudienceBadges } from "@/components/portal/AudienceBadges"
+import { ExpandableText } from "@/components/portal/ExpandableText"
 
 const LANG_PREFERENCE_KEY = "portal:preferred-language"
 
@@ -266,9 +267,7 @@ export function AssetInfoDrawer({ asset, open, onClose }: AssetInfoDrawerProps) 
                 {asset.title}
               </h2>
               {asset.description && (
-                <p className="text-gray-600 mt-2 leading-relaxed">
-                  {asset.description}
-                </p>
+                <ExpandableText key={asset.id} text={asset.description} className="text-gray-600 mt-2 leading-relaxed" />
               )}
             </div>
 

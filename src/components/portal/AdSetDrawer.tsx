@@ -25,6 +25,7 @@ import {
 import { Drawer } from "@/components/ui/Drawer"
 import { Button } from "@/components/ui/Button"
 import { AudienceBadges } from "@/components/portal/AudienceBadges"
+import { ExpandableText } from "@/components/portal/ExpandableText"
 import { cn } from "@/lib/utils"
 import type { SerializedAdSet } from "@/lib/adSets"
 import { adPlatformLabel } from "@/lib/adPlatforms"
@@ -102,7 +103,12 @@ function CopyField({
         </div>
         <CopyIconButton text={value} label={label} />
       </div>
-      <p className={cn("text-gray-900 whitespace-pre-line leading-relaxed", emphasis ? "font-medium" : "text-sm")}>
+      <p
+        className={cn(
+          "text-gray-900 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere]",
+          emphasis ? "font-medium" : "text-sm"
+        )}
+      >
         {value}
       </p>
     </div>
@@ -134,7 +140,13 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
     () => (activeLanguage ? copies.filter((c) => !c.language || c.language === activeLanguage) : copies),
     [copies, activeLanguage]
   )
-  const activeCopy = visibleCopies.find((c) => c.id === activeCopyId) ?? visibleCopies[0] ?? null
+  // Most ad sets are "one visual + one copy per ad", numbered the same way.
+  // Then the copy simply follows the visual being shown (no version picker).
+  // Otherwise (e.g. one image with several copy variants) a compact select.
+  const pairedWithVisuals = visibleCopies.length > 1 && visibleCopies.length === media.length
+  const activeCopy = pairedWithVisuals
+    ? visibleCopies[activeVisual] ?? null
+    : visibleCopies.find((c) => c.id === activeCopyId) ?? visibleCopies[0] ?? null
 
   // Reset when a different ad set opens; language follows the same
   // preference the asset drawer stores.
@@ -287,12 +299,14 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
           )}
 
           {/* Content */}
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 min-w-0 overflow-x-hidden">
             {/* Title & Description */}
             <div>
               <AudienceBadges visibility={adSet.visibility} brand={adSet.brand} className="mb-2" />
               <h2 className="text-xl font-semibold text-gray-900 leading-tight">{adSet.title}</h2>
-              {adSet.description && <p className="text-gray-600 mt-2 leading-relaxed">{adSet.description}</p>}
+              {adSet.description && (
+                <ExpandableText key={adSet.id} text={adSet.description} className="text-gray-600 mt-2 leading-relaxed" />
+              )}
             </div>
 
             {/* Quick Actions */}
@@ -344,29 +358,35 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
                   )}
                 </div>
 
-                {/* Version tabs when there's more than one in this language */}
-                {visibleCopies.length > 1 && (
-                  <div className="flex gap-1 border-b border-gray-200">
+                {/* Which ad's copy is shown */}
+                {pairedWithVisuals && activeCopy && (
+                  <p className="text-sm text-gray-500">
+                    <span className="font-medium text-gray-900">
+                      Ad {activeVisual + 1} of {media.length}
+                    </span>
+                    {" "}· use the arrows or thumbnails above to see the other ads
+                  </p>
+                )}
+                {!pairedWithVisuals && visibleCopies.length > 1 && (
+                  <select
+                    value={activeCopy?.id}
+                    onChange={(e) => setActiveCopyId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white truncate"
+                    aria-label="Copy version"
+                  >
                     {visibleCopies.map((c, i) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setActiveCopyId(c.id)}
-                        className={cn(
-                          "px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-                          c.id === activeCopy?.id
-                            ? "border-primary text-primary"
-                            : "border-transparent text-gray-500 hover:text-gray-800"
-                        )}
-                      >
+                      <option key={c.id} value={c.id}>
                         {c.label || `Version ${String.fromCharCode(65 + i)}`}
-                      </button>
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 )}
 
                 {activeCopy && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                    {activeCopy.label && (pairedWithVisuals || visibleCopies.length === 1) && (
+                      <p className="text-sm font-medium text-gray-900 break-words">{activeCopy.label}</p>
+                    )}
                     <CopyField icon={<AlignLeft className="w-4 h-4" />} label="Intro text" value={activeCopy.introText} />
                     <CopyField icon={<Type className="w-4 h-4" />} label="Headline" value={activeCopy.headline} emphasis />
                     <CopyField icon={<AlignLeft className="w-4 h-4" />} label="Description" value={activeCopy.description} />
