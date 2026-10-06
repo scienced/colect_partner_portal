@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { format } from "date-fns"
 import {
-  AlignLeft,
   Calendar,
   Check,
   ChevronLeft,
@@ -19,8 +18,6 @@ import {
   ImageIcon,
   Link2,
   Megaphone,
-  MousePointerClick,
-  Type,
 } from "lucide-react"
 import { Drawer } from "@/components/ui/Drawer"
 import { Button } from "@/components/ui/Button"
@@ -32,7 +29,6 @@ import { adPlatformLabel } from "@/lib/adPlatforms"
 
 type AdCopyItem = SerializedAdSet["copies"][number]
 
-const LANG_PREFERENCE_KEY = "portal:preferred-language"
 
 function formatDateTime(dateString: string) {
   try {
@@ -40,6 +36,11 @@ function formatDateTime(dateString: string) {
   } catch {
     return dateString
   }
+}
+
+/** "Ad 3 – timing: …" → "timing: …" (the "Ad 3 of 6" line already says which ad). */
+function labelWithoutAdNumber(label: string): string {
+  return label.replace(/^ad\s*\d+\s*[–—:-]\s*/i, "")
 }
 
 function copyAsText(c: AdCopyItem): string {
@@ -54,67 +55,6 @@ function copyAsText(c: AdCopyItem): string {
     .join("\n\n")
 }
 
-/** Small icon button that copies `text` and flashes a check. */
-function CopyIconButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        } catch (err) {
-          console.error("Failed to copy:", err)
-        }
-      }}
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium transition-colors",
-        copied ? "text-green-600" : "text-gray-400 hover:text-primary"
-      )}
-      aria-label={`Copy ${label}`}
-    >
-      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      {copied ? "Copied" : "Copy"}
-    </button>
-  )
-}
-
-/** One labelled copy field — same label style as the asset drawer's metadata. */
-function CopyField({
-  icon,
-  label,
-  value,
-  emphasis,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string | null
-  emphasis?: boolean
-}) {
-  if (!value) return null
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          {icon}
-          <span>{label}</span>
-        </div>
-        <CopyIconButton text={value} label={label} />
-      </div>
-      <p
-        className={cn(
-          "text-gray-900 whitespace-pre-line leading-relaxed break-words [overflow-wrap:anywhere]",
-          emphasis ? "font-medium" : "text-sm"
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
 interface AdSetDrawerProps {
   adSet: SerializedAdSet | null
   open: boolean
@@ -123,23 +63,14 @@ interface AdSetDrawerProps {
 
 export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
   const [activeVisual, setActiveVisual] = useState(0)
-  const [activeLanguage, setActiveLanguage] = useState<string | null>(null)
   const [activeCopyId, setActiveCopyId] = useState<string | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
-  const [allCopied, setAllCopied] = useState(false)
+  const [textCopied, setTextCopied] = useState(false)
 
   const media = useMemo(() => adSet?.media ?? [], [adSet])
   const copies = useMemo(() => adSet?.copies ?? [], [adSet])
 
-  // Languages that have copy. Copy without a language shows under every tab.
-  const languages = useMemo(
-    () => Array.from(new Set(copies.map((c) => c.language).filter((l): l is string => !!l))),
-    [copies]
-  )
-  const visibleCopies = useMemo(
-    () => (activeLanguage ? copies.filter((c) => !c.language || c.language === activeLanguage) : copies),
-    [copies, activeLanguage]
-  )
+  const visibleCopies = copies
   // Most ad sets are "one visual + one copy per ad", numbered the same way.
   // Then the copy simply follows the visual being shown (no version picker).
   // Otherwise (e.g. one image with several copy variants) a compact select.
@@ -148,20 +79,12 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
     ? visibleCopies[activeVisual] ?? null
     : visibleCopies.find((c) => c.id === activeCopyId) ?? visibleCopies[0] ?? null
 
-  // Reset when a different ad set opens; language follows the same
-  // preference the asset drawer stores.
+  // Reset when a different ad set opens.
   useEffect(() => {
     if (!adSet || !open) return
     setActiveVisual(0)
     setActiveCopyId(null)
-    let lang: string | null = languages[0] ?? null
-    if (typeof window !== "undefined" && languages.length > 1) {
-      const stored = window.localStorage.getItem(LANG_PREFERENCE_KEY)
-      const browser = window.navigator.language?.split("-")[0]?.toUpperCase()
-      lang = (stored && languages.includes(stored) ? stored : null) ?? (browser && languages.includes(browser) ? browser : null) ?? lang
-    }
-    setActiveLanguage(languages.length > 1 ? lang : null)
-  }, [adSet, open, languages])
+  }, [adSet, open])
 
   // ← / → step through the visuals while the drawer is open.
   useEffect(() => {
@@ -174,12 +97,6 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [open, media.length])
-
-  const changeLanguage = (lang: string) => {
-    setActiveLanguage(lang)
-    setActiveCopyId(null)
-    if (typeof window !== "undefined") window.localStorage.setItem(LANG_PREFERENCE_KEY, lang)
-  }
 
   const shareUrl = typeof window !== "undefined" && adSet ? `${window.location.origin}/ads?asset=${adSet.id}` : ""
   const current = media[activeVisual]
@@ -331,116 +248,56 @@ export function AdSetDrawer({ adSet, open, onClose }: AdSetDrawerProps) {
               )}
             </div>
 
-            {/* Ad copy */}
-            {copies.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <AlignLeft className="w-4 h-4" />
-                    <span>Ad copy</span>
-                  </div>
-                  {languages.length > 1 && (
-                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
-                      {languages.map((lang) => (
-                        <button
-                          key={lang}
-                          type="button"
-                          onClick={() => changeLanguage(lang)}
-                          className={cn(
-                            "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-                            lang === activeLanguage ? "bg-white text-primary shadow-sm" : "text-gray-600 hover:text-gray-900"
-                          )}
-                        >
-                          {lang}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Which ad's copy is shown */}
-                {pairedWithVisuals && activeCopy && (
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-900">
-                      Ad {activeVisual + 1} of {media.length}
-                    </span>
-                    {" "}· use the arrows or thumbnails above to see the other ads
-                  </p>
-                )}
+            {/* Ad copy — kept light: which ad, a 3-line preview, one copy button.
+                The full copy of every ad is in Download all (copy.txt). */}
+            {activeCopy && (
+              <div className="space-y-2">
                 {!pairedWithVisuals && visibleCopies.length > 1 && (
                   <select
-                    value={activeCopy?.id}
+                    value={activeCopy.id}
                     onChange={(e) => setActiveCopyId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white truncate"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                     aria-label="Copy version"
                   >
                     {visibleCopies.map((c, i) => (
                       <option key={c.id} value={c.id}>
-                        {c.label || `Version ${String.fromCharCode(65 + i)}`}
+                        {(c.label || `Version ${String.fromCharCode(65 + i)}`) + (c.language ? ` (${c.language})` : "")}
                       </option>
                     ))}
                   </select>
                 )}
-
-                {activeCopy && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
-                    {activeCopy.label && (pairedWithVisuals || visibleCopies.length === 1) && (
-                      <p className="text-sm font-medium text-gray-900 break-words">{activeCopy.label}</p>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm min-w-0 break-words">
+                    <span className="font-medium text-gray-900">
+                      {pairedWithVisuals ? `Ad ${activeVisual + 1} of ${media.length}` : "Ad copy"}
+                    </span>
+                    {activeCopy.label && (
+                      <span className="text-gray-500">
+                        {" · "}
+                        {pairedWithVisuals ? labelWithoutAdNumber(activeCopy.label) : activeCopy.label}
+                      </span>
                     )}
-                    <CopyField icon={<AlignLeft className="w-4 h-4" />} label="Intro text" value={activeCopy.introText} />
-                    <CopyField icon={<Type className="w-4 h-4" />} label="Headline" value={activeCopy.headline} emphasis />
-                    <CopyField icon={<AlignLeft className="w-4 h-4" />} label="Description" value={activeCopy.description} />
-                    {(activeCopy.ctaLabel || activeCopy.destinationUrl) && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {activeCopy.ctaLabel && (
-                          <div className="col-span-2 sm:col-span-1">
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1.5">
-                              <MousePointerClick className="w-4 h-4" />
-                              <span>Call to action</span>
-                            </div>
-                            <span className="inline-flex px-3 py-1 rounded-full border border-primary text-primary text-sm font-medium bg-white">
-                              {activeCopy.ctaLabel}
-                            </span>
-                          </div>
-                        )}
-                        {activeCopy.destinationUrl && (
-                          <div className="col-span-2 sm:col-span-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                              <div className="flex items-center gap-2 text-sm text-gray-500">
-                                <Link2 className="w-4 h-4" />
-                                <span>Destination</span>
-                              </div>
-                              <CopyIconButton text={activeCopy.destinationUrl} label="destination link" />
-                            </div>
-                            <a
-                              href={activeCopy.destinationUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline truncate block"
-                            >
-                              {activeCopy.destinationUrl.replace(/^https?:\/\//, "")}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="pt-3 border-t border-gray-200 flex justify-end">
-                      <Button variant="secondary" size="sm" onClick={() => copyText(copyAsText(activeCopy), setAllCopied)}>
-                        {allCopied ? (
-                          <>
-                            <Check className="w-4 h-4 mr-1 text-green-600" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-1" />
-                            Copy all text
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600 whitespace-pre-line break-words [overflow-wrap:anywhere] line-clamp-3">
+                    {activeCopy.introText}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-400">Full copy of every ad is in the ZIP</span>
+                    <Button variant="secondary" size="sm" onClick={() => copyText(copyAsText(activeCopy), setTextCopied)}>
+                      {textCopied ? (
+                        <>
+                          <Check className="w-4 h-4 mr-1 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 mr-1" />
+                          Copy ad text
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
